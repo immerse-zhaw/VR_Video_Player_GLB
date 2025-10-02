@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VR Video Player Control</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #222; color: #eee; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .container { background: #333; padding: 2em; border-radius: 10px; box-shadow: 0 0 10px #000; }
+        input, button { margin: 0.5em; padding: 0.5em; border-radius: 5px; border: none; }
+        button { background: #0078d7; color: #fff; cursor: pointer; }
+        button.toggled { background: #005fa3; }
+        button:hover { background: #005fa3; }
+        .toggle-buttons { display: flex; justify-content: flex-end; gap: 1em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>VR Video Player Control</h2>
+        <div>
+            <input type="text" id="deviceIP" placeholder="192.168.1.42" size="15">
+            <button onclick="addDevice()">Add Device</button>
+        </div>
+        <div id="deviceList" style="margin:1em 0;"></div>
+        <div class="toggle-buttons">
+            <button id="toggleMode" onclick="toggleMode()">Switch to 3D Mode</button>
+        </div>
+        <input type="text" id="videoPath" placeholder="file:///C:/path/to/video.mp4" size="40">
+        <br>
+        <button onclick="sendPlay()">Play</button>
+        <button onclick="sendPause()">Pause</button>
+        <button onclick="sendResume()">Resume</button>
+        <button onclick="retryConnection()">Retry Connection</button>
+        <div id="status" style="margin-top:1em;"></div>
+        <div id="videoContainer" style="margin-top:1em; width:100%; max-width:400px;">
+            <video id="videoPreview" controls style="width:100%; display:none;"></video>
+            <div id="videoPlaceholder" style="background:#555; padding:2em; text-align:center; border-radius:5px;">
+                <p>Video Preview</p>
+                <p style="font-size:0.8em; opacity:0.7;">Play an HTTP video URL to see preview here</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        let devices = {};
+        let is3DMode = false;
+
+        function addDevice() {
+            const ip = document.getElementById('deviceIP').value.trim();
+            if (!ip || devices[ip]) return;
+            
+            const ws = new WebSocket(`ws://${ip}:8080`);
+            devices[ip] = { ws, connected: false };
+            
+            ws.onopen = () => {
+                devices[ip].connected = true;
+                updateDeviceList();
+                setStatus(`Connected to ${ip}`);
+            };
+            ws.onclose = () => {
+                devices[ip].connected = false;
+                updateDeviceList();
+            };
+            ws.onerror = () => {
+                devices[ip].connected = false;
+                updateDeviceList();
+            };
+            
+            updateDeviceList();
+            document.getElementById('deviceIP').value = '';
+        }
+
+        function updateDeviceList() {
+            const list = document.getElementById('deviceList');
+            list.innerHTML = Object.keys(devices).map(ip => 
+                `<div style="display:flex;align-items:center;gap:0.5em;">
+                    <span style="color:${devices[ip].connected ? '#0f0' : '#f00'}">●</span>
+                    <span>${ip}</span>
+                    <button onclick="removeDevice('${ip}')" style="padding:0.2em 0.5em;font-size:0.8em;">Remove</button>
+                </div>`
+            ).join('');
+        }
+
+        function removeDevice(ip) {
+            if (devices[ip]) {
+                devices[ip].ws.close();
+                delete devices[ip];
+                updateDeviceList();
+            }
+        }
+
+        function broadcastToAll(message) {
+            Object.values(devices).forEach(device => {
+                if (device.connected) device.ws.send(message);
+            });
+        }
+
+        function setStatus(msg) {
+            document.getElementById('status').innerText = msg;
+        }
+
+        function toggleMode() {
+            is3DMode = !is3DMode;
+            const button = document.getElementById('toggleMode');
+            button.textContent = is3DMode ? 'Switch to 2D Mode' : 'Switch to 3D Mode';
+            broadcastToAll(JSON.stringify({ action: 'toggleMode', mode: is3DMode ? '3D' : '2D' }));
+        }
+
+		function sendPlay() {
+			const path = document.getElementById('videoPath').value;
+			broadcastToAll(JSON.stringify({ action: 'play', path }));
+			
+			// Update video preview
+			const videoPreview = document.getElementById('videoPreview');
+			const placeholder = document.getElementById('videoPlaceholder');
+			
+			if (path.startsWith('http')) {
+				videoPreview.src = path;
+				videoPreview.style.display = 'block';
+				placeholder.style.display = 'none';
+				videoPreview.play();
+			} else {
+				videoPreview.style.display = 'none';
+				placeholder.style.display = 'block';
+				placeholder.innerHTML = '<p>Playing: ' + path.split('/').pop() + '</p><p style="font-size:0.8em; opacity:0.7;">Local files cannot be previewed in browser</p>';
+			}
+		}        function sendPause() {
+            broadcastToAll(JSON.stringify({ action: 'pause' }));
+            const videoPreview = document.getElementById('videoPreview');
+            if (videoPreview.src) {
+                videoPreview.pause();
+            }
+        }
+
+        function sendResume() {
+            broadcastToAll(JSON.stringify({ action: 'resume' }));
+            const videoPreview = document.getElementById('videoPreview');
+            if (videoPreview.src) {
+                videoPreview.play();
+            }
+        }
+
+        function retryConnection() {
+            Object.keys(devices).forEach(ip => {
+                removeDevice(ip);
+                setTimeout(() => {
+                    document.getElementById('deviceIP').value = ip;
+                    addDevice();
+                }, 100);
+            });
+        }
+    </script>
+</body>
+</html>
