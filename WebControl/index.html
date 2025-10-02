@@ -16,11 +16,6 @@
 <body>
     <div class="container">
         <h2>VR Video Player Control</h2>
-        <div>
-            <input type="text" id="deviceIP" placeholder="192.168.1.42" size="15">
-            <button onclick="addDevice()">Add Device</button>
-        </div>
-        <div id="deviceList" style="margin:1em 0;"></div>
         <div class="toggle-buttons">
             <button id="toggleMode" onclick="toggleMode()">Switch to 3D Mode</button>
         </div>
@@ -40,57 +35,15 @@
         </div>
     </div>
     <script>
-        let devices = {};
+        let ws;
         let is3DMode = false;
 
-        function addDevice() {
-            const ip = document.getElementById('deviceIP').value.trim();
-            if (!ip || devices[ip]) return;
-            
-            const ws = new WebSocket(`ws://${ip}:8080`);
-            devices[ip] = { ws, connected: false };
-            
-            ws.onopen = () => {
-                devices[ip].connected = true;
-                updateDeviceList();
-                setStatus(`Connected to ${ip}`);
-            };
-            ws.onclose = () => {
-                devices[ip].connected = false;
-                updateDeviceList();
-            };
-            ws.onerror = () => {
-                devices[ip].connected = false;
-                updateDeviceList();
-            };
-            
-            updateDeviceList();
-            document.getElementById('deviceIP').value = '';
-        }
-
-        function updateDeviceList() {
-            const list = document.getElementById('deviceList');
-            list.innerHTML = Object.keys(devices).map(ip => 
-                `<div style="display:flex;align-items:center;gap:0.5em;">
-                    <span style="color:${devices[ip].connected ? '#0f0' : '#f00'}">●</span>
-                    <span>${ip}</span>
-                    <button onclick="removeDevice('${ip}')" style="padding:0.2em 0.5em;font-size:0.8em;">Remove</button>
-                </div>`
-            ).join('');
-        }
-
-        function removeDevice(ip) {
-            if (devices[ip]) {
-                devices[ip].ws.close();
-                delete devices[ip];
-                updateDeviceList();
-            }
-        }
-
-        function broadcastToAll(message) {
-            Object.values(devices).forEach(device => {
-                if (device.connected) device.ws.send(message);
-            });
+        function connect() {
+            ws = new WebSocket('ws://localhost:8080');
+            ws.onopen = () => setStatus('Connected');
+            ws.onclose = () => setStatus('Disconnected');
+            ws.onerror = err => setStatus('Error: ' + err.message);
+            ws.onmessage = msg => setStatus('Server: ' + msg.data);
         }
 
         function setStatus(msg) {
@@ -101,12 +54,12 @@
             is3DMode = !is3DMode;
             const button = document.getElementById('toggleMode');
             button.textContent = is3DMode ? 'Switch to 2D Mode' : 'Switch to 3D Mode';
-            broadcastToAll(JSON.stringify({ action: 'toggleMode', mode: is3DMode ? '3D' : '2D' }));
+            ws.send(JSON.stringify({ action: 'toggleMode', mode: is3DMode ? '3D' : '2D' }));
         }
 
 		function sendPlay() {
 			const path = document.getElementById('videoPath').value;
-			broadcastToAll(JSON.stringify({ action: 'play', path }));
+			ws.send(JSON.stringify({ action: 'play', path }));
 			
 			// Update video preview
 			const videoPreview = document.getElementById('videoPreview');
@@ -123,7 +76,7 @@
 				placeholder.innerHTML = '<p>Playing: ' + path.split('/').pop() + '</p><p style="font-size:0.8em; opacity:0.7;">Local files cannot be previewed in browser</p>';
 			}
 		}        function sendPause() {
-            broadcastToAll(JSON.stringify({ action: 'pause' }));
+            ws.send(JSON.stringify({ action: 'pause' }));
             const videoPreview = document.getElementById('videoPreview');
             if (videoPreview.src) {
                 videoPreview.pause();
@@ -131,7 +84,7 @@
         }
 
         function sendResume() {
-            broadcastToAll(JSON.stringify({ action: 'resume' }));
+            ws.send(JSON.stringify({ action: 'resume' }));
             const videoPreview = document.getElementById('videoPreview');
             if (videoPreview.src) {
                 videoPreview.play();
@@ -139,14 +92,10 @@
         }
 
         function retryConnection() {
-            Object.keys(devices).forEach(ip => {
-                removeDevice(ip);
-                setTimeout(() => {
-                    document.getElementById('deviceIP').value = ip;
-                    addDevice();
-                }, 100);
-            });
+            connect();
         }
+
+        window.onload = connect;
     </script>
 </body>
 </html>
