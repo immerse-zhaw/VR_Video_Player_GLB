@@ -39,7 +39,9 @@
         let is3DMode = false;
 
         function connect() {
-            ws = new WebSocket('ws://localhost:8080');
+            //ws = new WebSocket('ws://localhost:8080');
+            //ws = new WebSocket('ws://192.168.4.242:8080');
+            ws = new WebSocket('ws://172.20.10.4:8080');
             ws.onopen = () => setStatus('Connected');
             ws.onclose = () => setStatus('Disconnected');
             ws.onerror = err => setStatus('Error: ' + err.message);
