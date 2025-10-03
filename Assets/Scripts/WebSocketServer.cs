@@ -32,7 +32,7 @@ public class WebSocketServer : MonoBehaviour
                         else if (cmd.action == "resume")
                             mainThreadActions.Enqueue(() => videoManager.ResumeVideo());
                         else if (cmd.action == "toggleMode")
-                            mainThreadActions.Enqueue(() => videoManager.ToggleVideoMode(cmd.mode == "3D"));
+                            mainThreadActions.Enqueue(() => videoManager.ToggleVideoMode(cmd.mode == "360"));
                     }
                 }
                 catch (Exception ex)

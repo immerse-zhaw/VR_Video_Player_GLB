@@ -4,21 +4,21 @@ using UnityEngine.Video;
 public class VideoManager : MonoBehaviour
 {
 	public VideoPlayer videoPlayer2D;
-	public VideoPlayer videoPlayer3D;
+	public VideoPlayer videoPlayer360;
 	public Material skyboxMaterial;
 	public Material defaultSkyboxMaterial;
-	private bool is3DMode = false;
+	private bool is360Mode = false;
 
 	void Awake()
 	{
 		if (videoPlayer2D == null)
 			videoPlayer2D = GetComponent<VideoPlayer>();
 
-		if (videoPlayer3D == null)
+		if (videoPlayer360 == null)
 		{
-			GameObject moviePlayer3D = GameObject.Find("3DMoviePlayer");
-			if (moviePlayer3D != null)
-				videoPlayer3D = moviePlayer3D.GetComponent<VideoPlayer>();
+			GameObject moviePlayer360 = GameObject.Find("360MoviePlayer");
+			if (moviePlayer360 != null)
+				videoPlayer360 = moviePlayer360.GetComponent<VideoPlayer>();
 		}
 
 		ApplyDefaultSkybox();
@@ -39,12 +39,12 @@ public class VideoManager : MonoBehaviour
 	// Play a video from a file path (e.g., file:///C:/path/to/video.mp4)
 	public void PlayVideo(string path)
 	{
-		if (is3DMode)
+		if (is360Mode)
 		{
-			videoPlayer3D.source = VideoSource.Url;
-			videoPlayer3D.url = path;
-			videoPlayer3D.Prepare();
-			videoPlayer3D.prepareCompleted += OnVideoPrepared3D;
+			videoPlayer360.source = VideoSource.Url;
+			videoPlayer360.url = path;
+			videoPlayer360.Prepare();
+			videoPlayer360.prepareCompleted += OnVideoPrepared360;
 		}
 		else
 		{
@@ -61,9 +61,9 @@ public class VideoManager : MonoBehaviour
 		vp.Play();
 	}
 
-	private void OnVideoPrepared3D(VideoPlayer vp)
+	private void OnVideoPrepared360(VideoPlayer vp)
 	{
-		vp.prepareCompleted -= OnVideoPrepared3D;
+		vp.prepareCompleted -= OnVideoPrepared360;
 		vp.Play();
 
 		RenderSettings.skybox = skyboxMaterial;
@@ -72,17 +72,17 @@ public class VideoManager : MonoBehaviour
 
 	public void PauseVideo()
 	{
-		if (is3DMode && videoPlayer3D.isPlaying)
-			videoPlayer3D.Pause();
-		else if (!is3DMode && videoPlayer2D.isPlaying)
+		if (is360Mode && videoPlayer360.isPlaying)
+			videoPlayer360.Pause();
+		else if (!is360Mode && videoPlayer2D.isPlaying)
 			videoPlayer2D.Pause();
 	}
 
 	public void ResumeVideo()
 	{
-		if (is3DMode && !videoPlayer3D.isPlaying)
-			videoPlayer3D.Play();
-		else if (!is3DMode && !videoPlayer2D.isPlaying)
+		if (is360Mode && !videoPlayer360.isPlaying)
+			videoPlayer360.Play();
+		else if (!is360Mode && !videoPlayer2D.isPlaying)
 			videoPlayer2D.Play();
 	}
 
@@ -91,7 +91,7 @@ public class VideoManager : MonoBehaviour
 		videoPlayer2D.gameObject.SetActive(enabled);
 	}
 
-	public void Toggle3D(bool enabled)
+	public void Toggle360(bool enabled)
 	{
 		if (enabled)
 		{
@@ -103,21 +103,21 @@ public class VideoManager : MonoBehaviour
 		}
 	}
 
-	public void ToggleVideoMode(bool enable3D)
+	public void ToggleVideoMode(bool enable360)
 	{
 		// Store current playback state
 		bool wasPlaying = false;
 		double currentTime = 0;
 		string currentUrl = "";
 
-		if (is3DMode && videoPlayer3D != null)
+		if (is360Mode && videoPlayer360 != null)
 		{
-			wasPlaying = videoPlayer3D.isPlaying;
-			currentTime = videoPlayer3D.time;
-			currentUrl = videoPlayer3D.url;
-			videoPlayer3D.Stop();
+			wasPlaying = videoPlayer360.isPlaying;
+			currentTime = videoPlayer360.time;
+			currentUrl = videoPlayer360.url;
+			videoPlayer360.Stop();
 		}
-		else if (!is3DMode && videoPlayer2D != null)
+		else if (!is360Mode && videoPlayer2D != null)
 		{
 			wasPlaying = videoPlayer2D.isPlaying;
 			currentTime = videoPlayer2D.time;
@@ -125,32 +125,32 @@ public class VideoManager : MonoBehaviour
 			videoPlayer2D.Stop();
 		}
 
-		is3DMode = enable3D;
+		is360Mode = enable360;
 
-		if (is3DMode)
+		if (is360Mode)
 		{
-			// Switch to 3D mode
+			// Switch to 360 mode
 			videoPlayer2D.gameObject.SetActive(false);
-			videoPlayer3D.gameObject.SetActive(true);
+			videoPlayer360.gameObject.SetActive(true);
 
 			RenderSettings.skybox = skyboxMaterial;
 			if (!string.IsNullOrEmpty(currentUrl))
 			{
-				videoPlayer3D.source = VideoSource.Url;
-				videoPlayer3D.url = currentUrl;
-				videoPlayer3D.Prepare();
-				videoPlayer3D.prepareCompleted += (vp) => {
-					vp.prepareCompleted -= OnVideoPrepared3D;
+				videoPlayer360.source = VideoSource.Url;
+				videoPlayer360.url = currentUrl;
+				videoPlayer360.Prepare();
+				videoPlayer360.prepareCompleted += (vp) => {
+					vp.prepareCompleted -= OnVideoPrepared360;
 					vp.time = currentTime;
 					if (wasPlaying) vp.Play();
-					OnVideoPrepared3D(vp);
+					OnVideoPrepared360(vp);
 				};
 			}
 		}
 		else
 		{
 			// Switch to 2D mode
-			videoPlayer3D.gameObject.SetActive(false);
+			videoPlayer360.gameObject.SetActive(false);
 			videoPlayer2D.gameObject.SetActive(true);
 
 			RenderSettings.skybox = defaultSkyboxMaterial;

@@ -16,15 +16,22 @@
 <body>
     <div class="container">
         <h2>VR Video Player Control</h2>
-        <div class="toggle-buttons">
-            <button id="toggleMode" onclick="toggleMode()">Switch to 3D Mode</button>
+        <div style="margin-bottom:1em;">
+            <input type="text" id="deviceIp" placeholder="Device IP (e.g. 192.168.1.10)" size="18">
+            <input type="number" id="devicePort" placeholder="Port" min="1" max="65535" value="8080" style="width:80px;">
+            <button onclick="addDevice()">Add Device</button>
         </div>
-        <input type="text" id="videoPath" placeholder="file:///C:/path/to/video.mp4" size="40">
-        <br>
-        <button onclick="sendPlay()">Play</button>
-        <button onclick="sendPause()">Pause</button>
-        <button onclick="sendResume()">Resume</button>
-        <button onclick="retryConnection()">Retry Connection</button>
+        <div id="deviceList" style="max-height:120px; overflow-y:auto; margin-bottom:1em; border:1px solid #444; border-radius:6px; background:#222; padding:0.5em 0;"></div>
+        <!-- toggleMode button moved below -->
+        <div style="display: flex; justify-content: center; margin-bottom: 1em;">
+            <input type="text" id="videoPath" placeholder="file:///C:/path/to/video.mp4" size="40">
+        </div>
+        <div style="display: flex; justify-content: center; gap: 0.1em; margin-bottom: 1em;">
+            <button onclick="sendPlay()">Play</button>
+            <button onclick="sendPause()">Pause</button>
+            <button onclick="sendResume()">Resume</button>
+            <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
+        </div>
         <div id="status" style="margin-top:1em;"></div>
         <div id="videoContainer" style="margin-top:1em; width:100%; max-width:400px;">
             <video id="videoPreview" controls style="width:100%; display:none;"></video>
@@ -35,17 +42,72 @@
         </div>
     </div>
     <script>
-        let ws;
-        let is3DMode = false;
+        // Device management
+        const devices = [];
+    let is360Mode = false;
+        const WS_PORT_SCRIPT = 8080; // Change this if you want a different default port in the script
 
-        function connect() {
-            //ws = new WebSocket('ws://localhost:8080');
-            //ws = new WebSocket('ws://192.168.4.242:8080');
-            ws = new WebSocket('ws://172.20.10.4:8080');
-            ws.onopen = () => setStatus('Connected');
-            ws.onclose = () => setStatus('Disconnected');
-            ws.onerror = err => setStatus('Error: ' + err.message);
-            ws.onmessage = msg => setStatus('Server: ' + msg.data);
+        function addDevice() {
+            const ip = document.getElementById('deviceIp').value.trim();
+            const port = document.getElementById('devicePort').value.trim();
+            if (!ip || !port) return;
+            const id = ip + ':' + port;
+            if (devices.find(d => d.id === id)) return;
+            const wsUrl = `ws://${ip}:${port}`;
+            const device = {
+                id,
+                ip,
+                port,
+                ws: null,
+                status: 'connecting',
+            };
+            devices.push(device);
+            updateDeviceList();
+            connectDevice(device);
+        }
+
+        function connectDevice(device) {
+            device.status = 'connecting';
+            updateDeviceList();
+            device.ws = new WebSocket(`ws://${device.ip}:${device.port}`);
+            device.ws.onopen = () => {
+                device.status = 'connected';
+                updateDeviceList();
+            };
+            device.ws.onclose = () => {
+                device.status = 'disconnected';
+                updateDeviceList();
+            };
+            device.ws.onerror = () => {
+                device.status = 'disconnected';
+                updateDeviceList();
+            };
+        }
+
+        function updateDeviceList() {
+            const list = document.getElementById('deviceList');
+            list.innerHTML = '';
+            devices.forEach(device => {
+                const color = device.status === 'connected' ? '#0f0' : (device.status === 'connecting' ? '#ff0' : '#f00');
+                const statusText = device.status.charAt(0).toUpperCase() + device.status.slice(1);
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.justifyContent = 'space-between';
+                div.style.gap = '0.5em';
+                div.style.padding = '0.2em 1em';
+                div.innerHTML = `
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};border:1px solid #333;"></span>
+                    <b>${device.ip}</b>:${device.port}
+                    <span style="flex:1 1 auto;"></span>
+                    <span style="font-size:0.9em;opacity:0.7;text-align:right;min-width:80px;">${statusText}</span>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function getConnectedDevices() {
+            return devices.filter(d => d.status === 'connected');
         }
 
         function setStatus(msg) {
@@ -53,32 +115,38 @@
         }
 
         function toggleMode() {
-            is3DMode = !is3DMode;
+            is360Mode = !is360Mode;
             const button = document.getElementById('toggleMode');
-            button.textContent = is3DMode ? 'Switch to 2D Mode' : 'Switch to 3D Mode';
-            ws.send(JSON.stringify({ action: 'toggleMode', mode: is3DMode ? '3D' : '2D' }));
+            button.textContent = is360Mode ? 'Switch to 2D Mode' : 'Switch to 360 Mode';
+            getConnectedDevices().forEach(device => {
+                device.ws.send(JSON.stringify({ action: 'toggleMode', mode: is360Mode ? '360' : '2D' }));
+            });
         }
 
-		function sendPlay() {
-			const path = document.getElementById('videoPath').value;
-			ws.send(JSON.stringify({ action: 'play', path }));
-			
-			// Update video preview
-			const videoPreview = document.getElementById('videoPreview');
-			const placeholder = document.getElementById('videoPlaceholder');
-			
-			if (path.startsWith('http')) {
-				videoPreview.src = path;
-				videoPreview.style.display = 'block';
-				placeholder.style.display = 'none';
-				videoPreview.play();
-			} else {
-				videoPreview.style.display = 'none';
-				placeholder.style.display = 'block';
-				placeholder.innerHTML = '<p>Playing: ' + path.split('/').pop() + '</p><p style="font-size:0.8em; opacity:0.7;">Local files cannot be previewed in browser</p>';
-			}
-		}        function sendPause() {
-            ws.send(JSON.stringify({ action: 'pause' }));
+        function sendPlay() {
+            const path = document.getElementById('videoPath').value;
+            getConnectedDevices().forEach(device => {
+                device.ws.send(JSON.stringify({ action: 'play', path }));
+            });
+            // Update video preview
+            const videoPreview = document.getElementById('videoPreview');
+            const placeholder = document.getElementById('videoPlaceholder');
+            if (path.startsWith('http')) {
+                videoPreview.src = path;
+                videoPreview.style.display = 'block';
+                placeholder.style.display = 'none';
+                videoPreview.play();
+            } else {
+                videoPreview.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = '<p>Playing: ' + path.split('/').pop() + '</p><p style="font-size:0.8em; opacity:0.7;">Local files cannot be previewed in browser</p>';
+            }
+        }
+
+        function sendPause() {
+            getConnectedDevices().forEach(device => {
+                device.ws.send(JSON.stringify({ action: 'pause' }));
+            });
             const videoPreview = document.getElementById('videoPreview');
             if (videoPreview.src) {
                 videoPreview.pause();
@@ -86,18 +154,18 @@
         }
 
         function sendResume() {
-            ws.send(JSON.stringify({ action: 'resume' }));
+            getConnectedDevices().forEach(device => {
+                device.ws.send(JSON.stringify({ action: 'resume' }));
+            });
             const videoPreview = document.getElementById('videoPreview');
             if (videoPreview.src) {
                 videoPreview.play();
             }
         }
 
-        function retryConnection() {
-            connect();
-        }
-
-        window.onload = connect;
+        window.onload = () => {
+            updateDeviceList();
+        };
     </script>
 </body>
 </html>
