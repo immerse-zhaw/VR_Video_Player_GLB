@@ -14,34 +14,47 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>VR Video Player Control</h2>
-        <div style="margin-bottom:1em;">
-            <input type="text" id="deviceIp" placeholder="Device IP (e.g. 192.168.1.10)" size="18">
-            <input type="number" id="devicePort" placeholder="Port" min="1" max="65535" value="8080" style="width:80px;">
-            <button onclick="addDevice()">Add Device</button>
-        </div>
-        <div id="deviceList" style="max-height:120px; overflow-y:auto; margin-bottom:1em; border:1px solid #444; border-radius:6px; background:#222; padding:0.5em 0;"></div>
-        <!-- toggleMode button moved below -->
-        <div style="display: flex; justify-content: center; margin-bottom: 1em;">
-            <input type="text" id="videoPath" placeholder="file:///C:/path/to/video.mp4" size="40">
-        </div>
-        <div style="display: flex; justify-content: center; gap: 0.1em; margin-bottom: 1em;">
-            <button onclick="sendPlay()">Play</button>
-            <button onclick="sendPause()">Pause</button>
-            <button onclick="sendResume()">Resume</button>
-            <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
-        </div>
-        <div id="status" style="margin-top:1em;"></div>
-        <div id="videoContainer" style="margin-top:1em; width:100%; max-width:400px;">
-            <video id="videoPreview" controls style="width:100%; display:none;"></video>
-            <div id="videoPlaceholder" style="background:#555; padding:2em; text-align:center; border-radius:5px;">
-                <p>Video Preview</p>
-                <p style="font-size:0.8em; opacity:0.7;">Play an HTTP video URL to see preview here</p>
+    <div style="display: flex; flex-direction: row; width: 100vw; height: 100vh; align-items: center; justify-content: center; gap: 2em;">
+        <div id="mainPanel" class="container" style="width: 420px; min-width: 320px; max-width: 480px;">
+            <h2>VR Video Player Control</h2>
+            <div style="margin-bottom:1em;">
+                <input type="text" id="deviceIp" placeholder="Device IP (e.g. 192.168.1.10)" size="18">
+                <input type="number" id="devicePort" placeholder="Port" min="1" max="65535" value="8080" style="width:80px;">
+                <button onclick="addDevice()">Add Device</button>
             </div>
+            <div id="deviceList" style="max-height:120px; overflow-y:auto; margin-bottom:1em; border:1px solid #444; border-radius:6px; background:#222; padding:0.5em 0;"></div>
+            <div style="display: flex; justify-content: center; margin-bottom: 1em;">
+                <input type="text" id="videoPath" placeholder="file:///C:/path/to/video.mp4" size="40">
+            </div>
+            <div style="display: flex; justify-content: center; gap: 0.1em; margin-bottom: 1em;">
+                <button onclick="sendPlay()">Play</button>
+                <button onclick="sendPause()">Pause</button>
+                <button onclick="sendResume()">Resume</button>
+                <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
+            </div>
+            <div id="status" style="margin-top:1em;"></div>
+            <div id="videoContainer" style="margin-top:1em; width:100%; max-width:400px;">
+                <video id="videoPreview" controls style="width:100%; display:none;"></video>
+                <div id="videoPlaceholder" style="background:#555; padding:2em; text-align:center; border-radius:5px;">
+                    <p>Video Preview</p>
+                    <p style="font-size:0.8em; opacity:0.7;">Play an HTTP video URL to see preview here</p>
+                </div>
+            </div>
+        </div>
+        <div id="videoListPanel" style="width: 300px; min-width: 220px; max-width: 340px; background: #292929; border-radius: 10px; box-shadow: 0 0 10px #000; padding: 1em; display: flex; flex-direction: column; align-items: stretch; height: auto;">
+            <h3 style="text-align:center;">Available Local Videos</h3>
+            <ul id="localVideos" style="list-style:none; padding:0; margin:0; max-height: 420px; overflow-y: auto;"></ul>
         </div>
     </div>
     <script>
+        // Make the right panel match the left panel's height after load
+        window.addEventListener('DOMContentLoaded', () => {
+            const left = document.getElementById('mainPanel');
+            const right = document.getElementById('videoListPanel');
+            if (left && right) {
+                right.style.height = left.offsetHeight + 'px';
+            }
+        });
         // Device management
         const devices = [];
     let is360Mode = false;
@@ -73,6 +86,7 @@
             device.ws.onopen = () => {
                 device.status = 'connected';
                 updateDeviceList();
+                requestVideoList(device);
             };
             device.ws.onclose = () => {
                 device.status = 'disconnected';
@@ -82,6 +96,56 @@
                 device.status = 'disconnected';
                 updateDeviceList();
             };
+            device.ws.onmessage = (msg) => {
+                try {
+                    const data = JSON.parse(msg.data);
+                    if (data.type === 'videoList') {
+                        device.videoList = data.files;
+                        if (device === getSelectedDevice()) {
+                            updateVideoListPanel();
+                        }
+                    }
+                } catch (e) {}
+            };
+        }
+
+        function requestVideoList(device) {
+            if (device && device.ws && device.ws.readyState === WebSocket.OPEN) {
+                device.ws.send(JSON.stringify({ action: 'listVideos' }));
+            }
+        }
+
+        // Select the first connected device by default
+        function getSelectedDevice() {
+            return getConnectedDevices()[0] || null;
+        }
+
+        function updateVideoListPanel() {
+            const ul = document.getElementById('localVideos');
+            ul.innerHTML = '';
+            const device = getSelectedDevice();
+            if (!device || !device.videoList || device.videoList.length === 0) {
+                ul.innerHTML = '<li style="color:#aaa;text-align:center;">No videos found</li>';
+                return;
+            }
+            device.videoList.forEach(fullPath => {
+                const li = document.createElement('li');
+                li.style.padding = '0.5em 0.5em';
+                li.style.borderBottom = '1px solid #444';
+                li.style.cursor = 'pointer';
+                // Extract filename from fullPath
+                const name = fullPath.split('/').pop();
+                li.textContent = name;
+                li.onclick = () => playLocalVideo(fullPath);
+                ul.appendChild(li);
+            });
+        }
+
+        function playLocalVideo(fullPath) {
+            const device = getSelectedDevice();
+            if (!device) return;
+            device.ws.send(JSON.stringify({ action: 'play', path: fullPath }));
+            document.getElementById('videoPath').value = fullPath;
         }
 
         function updateDeviceList() {
@@ -165,6 +229,7 @@
 
         window.onload = () => {
             updateDeviceList();
+            updateVideoListPanel();
         };
     </script>
 </body>

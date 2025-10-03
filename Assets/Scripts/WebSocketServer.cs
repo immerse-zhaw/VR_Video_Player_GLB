@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using Fleck;
 
@@ -33,6 +34,8 @@ public class WebSocketServer : MonoBehaviour
                             mainThreadActions.Enqueue(() => videoManager.ResumeVideo());
                         else if (cmd.action == "toggleMode")
                             mainThreadActions.Enqueue(() => videoManager.ToggleVideoMode(cmd.mode == "360"));
+                        else if (cmd.action == "listVideos")
+                            mainThreadActions.Enqueue(() => SendVideoList(socket));
                     }
                 }
                 catch (Exception ex)
@@ -41,6 +44,24 @@ public class WebSocketServer : MonoBehaviour
                 }
             };
         });
+    }
+
+    private void SendVideoList(IWebSocketConnection socket)
+    {
+        // Adjust path for build/runtime if needed
+        string folderPath = Path.Combine(Application.dataPath, "SampleVids");
+        if (!Directory.Exists(folderPath))
+        {
+            Debug.LogWarning($"SampleVids folder not found: {folderPath}");
+            socket.Send("{\"type\":\"videoList\",\"files\":[]}");
+            return;
+        }
+        var files = Directory.GetFiles(folderPath, "*.mp4");
+        var fullPaths = new List<string>();
+        foreach (var file in files)
+            fullPaths.Add("file:///" + file.Replace("\\", "/"));
+        var response = new VideoListResponse { type = "videoList", files = fullPaths.ToArray() };
+        socket.Send(JsonUtility.ToJson(response));
     }
 
     void Update()
@@ -53,10 +74,17 @@ public class WebSocketServer : MonoBehaviour
     }
 
     [Serializable]
-    private class WSCommand
+    internal class WSCommand
     {
         public string action;
         public string path;
         public string mode;
+    }
+
+    [Serializable]
+    internal class VideoListResponse
+    {
+        public string type;
+        public string[] files;
     }
 }
