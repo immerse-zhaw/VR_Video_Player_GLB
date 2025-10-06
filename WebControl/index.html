@@ -28,8 +28,7 @@
             </div>
             <div style="display: flex; justify-content: center; gap: 0.1em; margin-bottom: 1em;">
                 <button onclick="sendPlay()">Play</button>
-                <button onclick="sendPause()">Pause</button>
-                <button onclick="sendResume()">Resume</button>
+                <button id="pauseResumeBtn" onclick="togglePauseResume()">Pause</button>
                 <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
             </div>
             <div id="status" style="margin-top:1em;"></div>
@@ -105,6 +104,16 @@
                             updateVideoListPanel();
                         }
                     }
+                    // Sync browser video preview with app pause/resume
+                    if (typeof data === 'string') return;
+                    if (data.action === 'pause') {
+                        const videoPreview = document.getElementById('videoPreview');
+                        if (videoPreview && !videoPreview.paused) videoPreview.pause();
+                    }
+                    if (data.action === 'resume') {
+                        const videoPreview = document.getElementById('videoPreview');
+                        if (videoPreview && videoPreview.paused && videoPreview.src) videoPreview.play();
+                    }
                 } catch (e) {}
             };
         }
@@ -146,6 +155,14 @@
             if (!device) return;
             device.ws.send(JSON.stringify({ action: 'play', path: fullPath }));
             document.getElementById('videoPath').value = fullPath;
+            // Hide the preview player for local videos
+            const videoPreview = document.getElementById('videoPreview');
+            const placeholder = document.getElementById('videoPlaceholder');
+            if (videoPreview && placeholder) {
+                videoPreview.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = '<p>Playing: ' + fullPath.split('/').pop() + '</p><p style="font-size:0.8em; opacity:0.7;">Local files cannot be previewed in browser</p>';
+            }
         }
 
         function updateDeviceList() {
@@ -160,12 +177,44 @@
                 div.style.justifyContent = 'space-between';
                 div.style.gap = '0.5em';
                 div.style.padding = '0.2em 1em';
-                div.innerHTML = `
-                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};border:1px solid #333;"></span>
-                    <b>${device.ip}</b>:${device.port}
-                    <span style="flex:1 1 auto;"></span>
-                    <span style="font-size:0.9em;opacity:0.7;text-align:right;min-width:80px;">${statusText}</span>
-                `;
+
+                // Device info
+                const infoSpan = document.createElement('span');
+                infoSpan.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};border:1px solid #333;"></span> <b>${device.ip}</b>`;
+
+                // Status
+                const statusSpan = document.createElement('span');
+                statusSpan.style.fontSize = '0.9em';
+                statusSpan.style.opacity = '0.7';
+                statusSpan.style.textAlign = 'right';
+                statusSpan.style.minWidth = '80px';
+                statusSpan.textContent = statusText;
+
+                // Reconnect button
+                const reconnectBtn = document.createElement('button');
+                reconnectBtn.textContent = 'Reconnect';
+                reconnectBtn.style.background = '#1976d2';
+                reconnectBtn.style.color = '#fff';
+                reconnectBtn.style.marginLeft = '0.5em';
+                reconnectBtn.onclick = () => {
+                    if (device.ws) device.ws.close();
+                    setTimeout(() => connectDevice(device), 200);
+                };
+
+                // Disconnect button
+                const disconnectBtn = document.createElement('button');
+                disconnectBtn.textContent = 'Disconnect';
+                disconnectBtn.style.background = '#d32f2f';
+                disconnectBtn.style.color = '#fff';
+                disconnectBtn.style.marginLeft = '0.2em';
+                disconnectBtn.onclick = () => {
+                    if (device.ws) device.ws.close();
+                };
+
+                div.appendChild(infoSpan);
+                div.appendChild(statusSpan);
+                div.appendChild(reconnectBtn);
+                div.appendChild(disconnectBtn);
                 list.appendChild(div);
             });
         }
@@ -207,29 +256,72 @@
             }
         }
 
-        function sendPause() {
-            getConnectedDevices().forEach(device => {
-                device.ws.send(JSON.stringify({ action: 'pause' }));
-            });
-            const videoPreview = document.getElementById('videoPreview');
-            if (videoPreview.src) {
-                videoPreview.pause();
-            }
-        }
 
-        function sendResume() {
-            getConnectedDevices().forEach(device => {
-                device.ws.send(JSON.stringify({ action: 'resume' }));
-            });
+        function togglePauseResume() {
             const videoPreview = document.getElementById('videoPreview');
-            if (videoPreview.src) {
-                videoPreview.play();
+            const btn = document.getElementById('pauseResumeBtn');
+            const path = document.getElementById('videoPath').value;
+            // If HTTP video, control the preview player and send websocket
+            if (videoPreview.src && videoPreview.style.display !== 'none' && path.startsWith('http')) {
+                if (videoPreview.paused) {
+                    getConnectedDevices().forEach(device => {
+                        device.ws.send(JSON.stringify({ action: 'resume' }));
+                    });
+                    videoPreview._programmaticPlay = true;
+                    videoPreview.play();
+                    btn.textContent = 'Pause';
+                } else {
+                    getConnectedDevices().forEach(device => {
+                        device.ws.send(JSON.stringify({ action: 'pause' }));
+                    });
+                    videoPreview._programmaticPause = true;
+                    videoPreview.pause();
+                    btn.textContent = 'Resume';
+                }
+            } else {
+                // For local videos, just send pause/resume to websocket and toggle button text
+                if (btn.textContent === 'Pause') {
+                    getConnectedDevices().forEach(device => {
+                        device.ws.send(JSON.stringify({ action: 'pause' }));
+                    });
+                    btn.textContent = 'Resume';
+                } else {
+                    getConnectedDevices().forEach(device => {
+                        device.ws.send(JSON.stringify({ action: 'resume' }));
+                    });
+                    btn.textContent = 'Pause';
+                }
             }
         }
 
         window.onload = () => {
             updateDeviceList();
             updateVideoListPanel();
+            // Set initial pause/resume button state and sync preview events to websocket
+            const videoPreview = document.getElementById('videoPreview');
+            const btn = document.getElementById('pauseResumeBtn');
+            if (videoPreview && btn) {
+                videoPreview.onplay = () => {
+                    btn.textContent = 'Pause';
+                    // If play was triggered by user (not programmatically), send resume to websocket
+                    if (!videoPreview._programmaticPlay) {
+                        getConnectedDevices().forEach(device => {
+                            device.ws.send(JSON.stringify({ action: 'resume' }));
+                        });
+                    }
+                    videoPreview._programmaticPlay = false;
+                };
+                videoPreview.onpause = () => {
+                    btn.textContent = 'Resume';
+                    // If pause was triggered by user (not programmatically), send pause to websocket
+                    if (!videoPreview._programmaticPause) {
+                        getConnectedDevices().forEach(device => {
+                            device.ws.send(JSON.stringify({ action: 'pause' }));
+                        });
+                    }
+                    videoPreview._programmaticPause = false;
+                };
+            }
         };
     </script>
 </body>

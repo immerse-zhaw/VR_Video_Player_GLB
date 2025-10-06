@@ -663,6 +663,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: XR Device Simulator
       objectReference: {fileID: 0}
+    - target: {fileID: 6598815579406187037, guid: 18ddb545287c546e19cc77dc9fbb2189, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1063,7 +1067,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VideoManager
   videoPlayer2D: {fileID: 584604340}
-  videoPlayer3D: {fileID: 1635584576}
+  videoPlayer360: {fileID: 1635584576}
   skyboxMaterial: {fileID: 2100000, guid: 1a1c12884355449498661554bbc76f96, type: 2}
   defaultSkyboxMaterial: {fileID: 2100000, guid: bba51330a05c9594d890e911250e75b9, type: 2}
 --- !u!1 &1635584575
@@ -1077,7 +1081,7 @@ GameObject:
   - component: {fileID: 1635584577}
   - component: {fileID: 1635584576}
   m_Layer: 0
-  m_Name: 3DMoviePlayer
+  m_Name: 360MoviePlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

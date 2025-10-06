@@ -49,7 +49,7 @@ public class WebSocketServer : MonoBehaviour
     private void SendVideoList(IWebSocketConnection socket)
     {
         // Adjust path for build/runtime if needed
-        string folderPath = Path.Combine(Application.dataPath, "SampleVids");
+        string folderPath = Path.Combine(Application.persistentDataPath, "SampleVids");
         if (!Directory.Exists(folderPath))
         {
             Debug.LogWarning($"SampleVids folder not found: {folderPath}");
