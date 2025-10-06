@@ -75,3 +75,5 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 Assets/SampleVids/BigBuckBunny.mp4
 Assets/SampleVids/BigBuckBunny.mp4.meta
+WebControl/SampleVids/BigBuckBunny.mp4
+WebControl/SampleVids/startvideo.mp4

@@ -34,6 +34,8 @@ public class WebSocketServer : MonoBehaviour
                             mainThreadActions.Enqueue(() => videoManager.ResumeVideo());
                         else if (cmd.action == "toggleMode")
                             mainThreadActions.Enqueue(() => videoManager.ToggleVideoMode(cmd.mode == "360"));
+                        else if (cmd.action == "seek")
+                            mainThreadActions.Enqueue(() => videoManager.SeekVideo(cmd.time));
                         else if (cmd.action == "listVideos")
                             mainThreadActions.Enqueue(() => SendVideoList(socket));
                     }
@@ -79,6 +81,7 @@ public class WebSocketServer : MonoBehaviour
         public string action;
         public string path;
         public string mode;
+        public double time;
     }
 
     [Serializable]

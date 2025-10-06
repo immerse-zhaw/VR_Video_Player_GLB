@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Video;
 
@@ -84,6 +85,37 @@ public class VideoManager : MonoBehaviour
 			videoPlayer360.Play();
 		else if (!is360Mode && !videoPlayer2D.isPlaying)
 			videoPlayer2D.Play();
+	}
+
+	public void SeekVideo(double timeSeconds)
+	{
+		VideoPlayer target = is360Mode ? videoPlayer360 : videoPlayer2D;
+		if (target == null)
+		{
+			Debug.LogWarning("No video player available for seeking.");
+			return;
+		}
+
+		if (!target.canSetTime)
+		{
+			Debug.LogWarning("Current video player does not support seeking.");
+			return;
+		}
+
+		double clampedTime = Math.Max(0d, timeSeconds);
+		if (target.length > 0 && !double.IsInfinity(target.length))
+		{
+			clampedTime = Math.Min(clampedTime, target.length);
+		}
+
+		bool wasPlaying = target.isPlaying;
+
+		target.time = clampedTime;
+
+		if (wasPlaying && !target.isPlaying)
+		{
+			target.Play();
+		}
 	}
 
 	public void Toggle2D(bool enabled)
