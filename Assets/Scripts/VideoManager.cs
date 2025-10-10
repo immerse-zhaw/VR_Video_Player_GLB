@@ -12,6 +12,14 @@ public class VideoManager : MonoBehaviour
 
 	void Awake()
 	{
+		// Ensure SampleVids folder exists, if not create it
+		string vidsFolder = System.IO.Path.Combine(Application.persistentDataPath, "SampleVids");
+		if (!System.IO.Directory.Exists(vidsFolder))
+		{
+			System.IO.Directory.CreateDirectory(vidsFolder);
+			Debug.Log($"Created missing folder: {vidsFolder}");
+		}
+
 		if (videoPlayer2D == null)
 			videoPlayer2D = GetComponent<VideoPlayer>();
 

@@ -4,8 +4,22 @@
     <meta charset="UTF-8">
     <title>VR Video Player Control</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #222; color: #eee; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        .container { background: #333; padding: 2em; border-radius: 10px; box-shadow: 0 0 10px #000; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #222; color: #eee; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 2em 3em; box-sizing: border-box; }
+    #layout { display: flex; gap: 2em; align-items: flex-start; justify-content: center; }
+    .column { display: flex; gap: 2em; align-items: stretch; }
+    .column.vertical { flex-direction: column; }
+    .panel { background: #333; padding: 2em; border-radius: 12px; box-shadow: 0 0 18px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 1em; }
+    #mainPanel.panel { width: 420px; min-width: 320px; height: 666px; }
+    #videoListPanel.panel { width: 210px; min-width: 180px; height: 666px; }
+    #glbPanel { width: 460px; min-width: 400px; height: 200px !important; transition: background 0.2s ease, box-shadow 0.2s ease; }
+    #glbPreviewPanel { width: 460px; min-width: 400px; height: 370px !important; }
+    #glbPanel.drag-hover { background: #2d2d2d; box-shadow: 0 0 20px #005fa3; }
+    #glbDropZone { width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; background: #232323; border-radius: 12px; color: #aaa; cursor: pointer; transition: background 0.2s ease, box-shadow 0.2s, border-color 0.2s; border: 2.5px dashed #1976d2; box-sizing: border-box; font-size: 0.98em; text-align: center; }
+    #glbDropText { width: 100%; text-align: center; font-size: 0.98em; line-height: 1.3; display: block; }
+    #glbDropZone.hover { background: #2d3540; border-color: #42a5f5; box-shadow: 0 0 0 2px #1976d2; }
+    #glbUploadStatus { min-height: 1em; }
+    #glbPreview { width: 100%; height: 320px; border-radius: 10px; background: #111; display: none; }
+    #glbPreviewPlaceholder { padding: 2em; border-radius: 10px; background: #2c2c2c; text-align: center; color: #999; height: 240px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
         input, button { margin: 0.5em; padding: 0.5em; border-radius: 5px; border: none; }
         button { background: #0078d7; color: #fff; cursor: pointer; }
         button.toggled { background: #005fa3; }
@@ -14,46 +28,59 @@
     </style>
 </head>
 <body>
-    <div style="display: flex; flex-direction: row; width: 100vw; height: 100vh; align-items: center; justify-content: center; gap: 2em;">
-        <div id="mainPanel" class="container" style="width: 420px; min-width: 320px; max-width: 480px;">
-            <h2>VR Video Player Control</h2>
-            <div style="margin-bottom:1em;">
-                <input type="text" id="deviceIp" placeholder="Device IP (e.g. 192.168.1.10)" size="18">
-                <input type="number" id="devicePort" placeholder="Port" min="1" max="65535" value="8080" style="width:80px;">
-                <button onclick="addDevice()">Add Device</button>
+    <div id="layout">
+        <div id="leftColumn" class="column">
+            <div id="mainPanel" class="panel">
+                <h2>VR Video Player Control</h2>
+                <div class="device-inputs">
+                    <input type="text" id="deviceIp" placeholder="Device IP (e.g. 192.168.1.10)" size="18">
+                    <input type="number" id="devicePort" placeholder="Port" min="1" max="65535" value="8080" style="width:80px;">
+                    <button onclick="addDevice()">Add Device</button>
+                </div>
+                <div id="deviceList" style="max-height:120px; overflow-y:auto; margin-bottom:1em; border:1px solid #444; border-radius:6px; background:#222; padding:0.5em 0;"></div>
+                <div style="display: flex; justify-content: center; margin-bottom: 1em;">
+                    <input type="text" id="videoPath" placeholder="file:///C:/path/to/video.mp4" size="40">
+                </div>
+                <div style="display: flex; justify-content: center; gap: 0.1em; margin-bottom: 1em;">
+                    <button onclick="sendPlay()">Play</button>
+                    <button id="pauseResumeBtn" onclick="togglePauseResume()">Pause</button>
+                    <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
+                </div>
+                <div id="status" style="margin-top:1em;"></div>
+                <div id="videoContainer" style="margin-top:1em; width:100%; max-width:400px;">
+                    <video id="videoPreview" controls style="width:100%; display:none;"></video>
+                    <div id="videoPlaceholder" style="background:#555; padding:2em; text-align:center; border-radius:5px;">
+                        <p>Video Preview</p>
+                        <p style="font-size:0.8em; opacity:0.7;">Play an HTTP video URL to see preview here</p>
+                    </div>
+                </div>
             </div>
-            <div id="deviceList" style="max-height:120px; overflow-y:auto; margin-bottom:1em; border:1px solid #444; border-radius:6px; background:#222; padding:0.5em 0;"></div>
-            <div style="display: flex; justify-content: center; margin-bottom: 1em;">
-                <input type="text" id="videoPath" placeholder="file:///C:/path/to/video.mp4" size="40">
+            <div id="videoListPanel" class="panel">
+                <h3 style="text-align:center;">Available Local Videos</h3>
+                <ul id="localVideos" style="list-style:none; padding:0; margin:0; max-height: 420px; overflow-y: auto;"></ul>
             </div>
-            <div style="display: flex; justify-content: center; gap: 0.1em; margin-bottom: 1em;">
-                <button onclick="sendPlay()">Play</button>
-                <button id="pauseResumeBtn" onclick="togglePauseResume()">Pause</button>
-                <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
+        </div>
+        <div id="rightColumn" class="column vertical">
+            <div id="glbPanel" class="panel">
+                <h3>Import 3D Model (GLB/GLTF)</h3>
+                <div id="glbDropZone">
+                    <span id="glbDropText">Drag & Drop .glb or .gltf file here, <br> or click to browse</span>
+                </div>
+                <div id="glbUploadStatus"></div>
             </div>
-            <div id="status" style="margin-top:1em;"></div>
-            <div id="videoContainer" style="margin-top:1em; width:100%; max-width:400px;">
-                <video id="videoPreview" controls style="width:100%; display:none;"></video>
-                <div id="videoPlaceholder" style="background:#555; padding:2em; text-align:center; border-radius:5px;">
-                    <p>Video Preview</p>
-                    <p style="font-size:0.8em; opacity:0.7;">Play an HTTP video URL to see preview here</p>
+            <div id="glbPreviewPanel" class="panel">
+                <h3>Model Preview</h3>
+                <model-viewer id="glbPreview" camera-controls autoplay></model-viewer>
+                <div id="glbPreviewPlaceholder">
+                    <p>No model selected.</p>
+                    <p style="font-size:0.85em; opacity:0.7;">Drop or browse a GLB/GLTF to preview it here.</p>
                 </div>
             </div>
         </div>
-        <div id="videoListPanel" style="width: 300px; min-width: 220px; max-width: 340px; background: #292929; border-radius: 10px; box-shadow: 0 0 10px #000; padding: 1em; display: flex; flex-direction: column; align-items: stretch; height: auto;">
-            <h3 style="text-align:center;">Available Local Videos</h3>
-            <ul id="localVideos" style="list-style:none; padding:0; margin:0; max-height: 420px; overflow-y: auto;"></ul>
-        </div>
     </div>
+    <input type="file" id="glbFileInput" accept=".glb,.gltf" hidden>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script>
-        // Make the right panel match the left panel's height after load
-        window.addEventListener('DOMContentLoaded', () => {
-            const left = document.getElementById('mainPanel');
-            const right = document.getElementById('videoListPanel');
-            if (left && right) {
-                right.style.height = left.offsetHeight + 'px';
-            }
-        });
         // Device management
         const devices = [];
         let is360Mode = false;
@@ -371,6 +398,96 @@
                 }
             }
         }
+
+        // --- GLB/GLTF Upload Logic ---
+        const glbPanel = document.getElementById('glbPanel');
+        const glbDropZone = document.getElementById('glbDropZone');
+        const glbDropText = document.getElementById('glbDropText');
+        const glbUploadStatus = document.getElementById('glbUploadStatus');
+        const glbFileInput = document.getElementById('glbFileInput');
+        const glbPreview = document.getElementById('glbPreview');
+        const glbPreviewPlaceholder = document.getElementById('glbPreviewPlaceholder');
+        let glbPreviewUrl = null;
+
+        function resetDropZone() {
+            glbDropZone.classList.remove('hover');
+            glbPanel.classList.remove('drag-hover');
+            glbDropText.textContent = 'Drag & Drop .glb or .gltf file here, or click to browse';
+        }
+
+        let dragCounter = 0;
+
+        function handleFileSelection(file) {
+            if (!file || !/\.(glb|gltf)$/i.test(file.name)) {
+                glbUploadStatus.style.color = '#f66';
+                glbUploadStatus.textContent = 'Only .glb or .gltf files are supported.';
+                return;
+            }
+
+            if (glbPreviewUrl) {
+                URL.revokeObjectURL(glbPreviewUrl);
+                glbPreviewUrl = null;
+            }
+
+            glbPreviewUrl = URL.createObjectURL(file);
+            glbPreview.src = glbPreviewUrl;
+            glbPreview.style.display = 'block';
+            glbPreviewPlaceholder.style.display = 'none';
+
+            glbUploadStatus.style.color = '#0f0';
+            glbUploadStatus.textContent = `Selected: ${file.name}`;
+
+            const connectedDevices = getConnectedDevices();
+            if (connectedDevices.length > 0) {
+                const payload = JSON.stringify({ action: 'importGLB', name: file.name });
+                connectedDevices.forEach(device => device.ws.send(payload));
+                glbUploadStatus.textContent = `Sent import request for: ${file.name}`;
+            } else {
+                glbUploadStatus.style.color = '#fdd835';
+                glbUploadStatus.textContent += ' (No connected devices detected)';
+            }
+
+            glbFileInput.value = '';
+        }
+
+
+        glbDropZone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            glbDropZone.classList.add('hover');
+            glbPanel.classList.add('drag-hover');
+            glbDropText.textContent = 'Release to select this file';
+        });
+        glbDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        glbDropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) {
+                resetDropZone();
+                dragCounter = 0;
+            }
+        });
+        glbDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            resetDropZone();
+            const file = e.dataTransfer.files[0];
+            handleFileSelection(file);
+        });
+
+        glbDropZone.addEventListener('click', () => glbFileInput.click());
+        glbFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            handleFileSelection(file);
+        });
+        window.addEventListener('beforeunload', () => {
+            if (glbPreviewUrl) {
+                URL.revokeObjectURL(glbPreviewUrl);
+            }
+        });
+        // --- End GLB/GLTF Upload Logic ---
 
         window.onload = () => {
             updateDeviceList();

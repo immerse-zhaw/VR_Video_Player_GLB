@@ -7,6 +7,7 @@ using Fleck;
 public class WebSocketServer : MonoBehaviour
 {
     public VideoManager videoManager;
+    public GLBImporter glbImporter;
     private Fleck.WebSocketServer server;
     private Queue<Action> mainThreadActions = new Queue<Action>();
 
@@ -14,6 +15,9 @@ public class WebSocketServer : MonoBehaviour
     {
         FleckLog.Level = LogLevel.Warn;
         server = new Fleck.WebSocketServer("ws://0.0.0.0:8080");
+        if (glbImporter == null)
+            glbImporter = FindObjectOfType<GLBImporter>();
+
         server.Start(socket =>
         {
             socket.OnOpen = () => Debug.Log("WebSocket client connected");
@@ -24,21 +28,7 @@ public class WebSocketServer : MonoBehaviour
                 try
                 {
                     var cmd = JsonUtility.FromJson<WSCommand>(message);
-                    lock (mainThreadActions)
-                    {
-                        if (cmd.action == "play" && !string.IsNullOrEmpty(cmd.path))
-                            mainThreadActions.Enqueue(() => videoManager.PlayVideo(cmd.path));
-                        else if (cmd.action == "pause")
-                            mainThreadActions.Enqueue(() => videoManager.PauseVideo());
-                        else if (cmd.action == "resume")
-                            mainThreadActions.Enqueue(() => videoManager.ResumeVideo());
-                        else if (cmd.action == "toggleMode")
-                            mainThreadActions.Enqueue(() => videoManager.ToggleVideoMode(cmd.mode == "360"));
-                        else if (cmd.action == "seek")
-                            mainThreadActions.Enqueue(() => videoManager.SeekVideo(cmd.time));
-                        else if (cmd.action == "listVideos")
-                            mainThreadActions.Enqueue(() => SendVideoList(socket));
-                    }
+                    HandleCommand(cmd, socket);
                 }
                 catch (Exception ex)
                 {
@@ -46,6 +36,70 @@ public class WebSocketServer : MonoBehaviour
                 }
             };
         });
+    }
+
+    private void HandleCommand(WSCommand cmd, IWebSocketConnection socket)
+    {
+        if (cmd == null || string.IsNullOrEmpty(cmd.action))
+        {
+            Debug.LogWarning("Received invalid WebSocket command.");
+            return;
+        }
+
+        switch (cmd.action)
+        {
+            case "play":
+                if (!string.IsNullOrEmpty(cmd.path))
+                    EnqueueOnMainThread(() => videoManager?.PlayVideo(cmd.path));
+                break;
+            case "pause":
+                EnqueueOnMainThread(() => videoManager?.PauseVideo());
+                break;
+            case "resume":
+                EnqueueOnMainThread(() => videoManager?.ResumeVideo());
+                break;
+            case "toggleMode":
+                EnqueueOnMainThread(() => videoManager?.ToggleVideoMode(cmd.mode == "360"));
+                break;
+            case "seek":
+                EnqueueOnMainThread(() => videoManager?.SeekVideo(cmd.time));
+                break;
+            case "listVideos":
+                EnqueueOnMainThread(() => SendVideoList(socket));
+                break;
+            case "importGLB":
+                if (!string.IsNullOrEmpty(cmd.name))
+                    EnqueueOnMainThread(() => HandleImportGLB(cmd.name));
+                break;
+            default:
+                Debug.LogWarning($"Unhandled WebSocket action: {cmd.action}");
+                break;
+        }
+    }
+
+    private void HandleImportGLB(string fileName)
+    {
+        if (glbImporter == null)
+        {
+            glbImporter = FindObjectOfType<GLBImporter>();
+            if (glbImporter == null)
+            {
+                Debug.LogError("GLBImporter not found in scene!");
+                return;
+            }
+        }
+
+        glbImporter.ImportGLB(fileName);
+        Debug.Log($"Requested import of GLB/GLTF: {fileName}");
+    }
+
+    private void EnqueueOnMainThread(Action action)
+    {
+        if (action == null) return;
+        lock (mainThreadActions)
+        {
+            mainThreadActions.Enqueue(action);
+        }
     }
 
     private void SendVideoList(IWebSocketConnection socket)
@@ -75,6 +129,12 @@ public class WebSocketServer : MonoBehaviour
         }
     }
 
+    void OnDestroy()
+    {
+        server?.Dispose();
+        server = null;
+    }
+
     [Serializable]
     internal class WSCommand
     {
@@ -82,6 +142,7 @@ public class WebSocketServer : MonoBehaviour
         public string path;
         public string mode;
         public double time;
+        public string name;
     }
 
     [Serializable]
