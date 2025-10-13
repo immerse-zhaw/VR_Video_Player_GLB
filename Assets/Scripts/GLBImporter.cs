@@ -5,25 +5,32 @@ using UnityEngine;
 using GLTFast;
 
 
+using TMPro;
 public class GLBImporter : MonoBehaviour
 {
     public Transform spawn;
     public float modelScale = 1.0f;
     private string glbDirectory;
+    public TextMeshProUGUI statusText; // Assign this in Unity inspector
 
     void Awake()
     {
-        glbDirectory = Path.Combine(Application.persistentDataPath, "GLB_Objects");
-        if (!Directory.Exists(glbDirectory))
-        {
-            Directory.CreateDirectory(glbDirectory);
-            Debug.Log($"Created missing folder: {glbDirectory}");
-        }
-        Debug.Log($"GLB directory: {glbDirectory}");
+        // glbDirectory = Path.Combine(Application.persistentDataPath, "GLB_Objects");
+        // if (!Directory.Exists(glbDirectory))
+        // {
+        //     Directory.CreateDirectory(glbDirectory);
+        //     Debug.Log($"Created missing folder: {glbDirectory}");
+        // }
+        // Debug.Log($"GLB directory: {glbDirectory}");
+        glbDirectory = "/sdcard"; // Use /sdcard as root directory for Android
+        if (statusText != null)
+            statusText.text = "Ready to import GLB.";
     }
 
     public async void ImportGLB(string fileName)
     {
+        if (statusText != null)
+            statusText.text = "Importing...";
         string fullPath = Path.Combine(glbDirectory, fileName);
         if (!File.Exists(fullPath))
         {
@@ -39,6 +46,8 @@ public class GLBImporter : MonoBehaviour
             else
             {
                 Debug.LogError($"GLB/GLTF file not found: {fullPath} or {altPath}");
+                if (statusText != null)
+                    statusText.text = "File not found.";
                 return;
             }
         }
@@ -57,6 +66,8 @@ public class GLBImporter : MonoBehaviour
                 model.transform.position = spawn.position;
                 model.transform.rotation = spawn.rotation;
             }
+            if (statusText != null)
+                statusText.text = "Import successful!";
 
             // Add Rigidbody
             var rigidbody = model.GetComponent<Rigidbody>();
@@ -125,6 +136,8 @@ public class GLBImporter : MonoBehaviour
         }
         else
         {
+            if (statusText != null)
+                statusText.text = "Import failed.";
             Debug.LogError("Failed to load GLB file: " + fileName);
         }
     }

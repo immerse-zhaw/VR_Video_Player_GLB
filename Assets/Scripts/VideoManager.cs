@@ -1,9 +1,13 @@
+using TMPro;
 using System;
 using UnityEngine;
 using UnityEngine.Video;
 
 public class VideoManager : MonoBehaviour
 {
+	// Use root directory directly for videos
+	private string videoRootDirectory = "/sdcard";
+	public TextMeshProUGUI statusText; // Assign this in Unity inspector if you want status display
 	public VideoPlayer videoPlayer2D;
 	public VideoPlayer videoPlayer360;
 	public Material skyboxMaterial;
@@ -12,13 +16,7 @@ public class VideoManager : MonoBehaviour
 
 	void Awake()
 	{
-		// Ensure SampleVids folder exists, if not create it
-		string vidsFolder = System.IO.Path.Combine(Application.persistentDataPath, "SampleVids");
-		if (!System.IO.Directory.Exists(vidsFolder))
-		{
-			System.IO.Directory.CreateDirectory(vidsFolder);
-			Debug.Log($"Created missing folder: {vidsFolder}");
-		}
+		// videoRootDirectory is set to /storage/emulated/0 for direct root access
 
 		if (videoPlayer2D == null)
 			videoPlayer2D = GetComponent<VideoPlayer>();
@@ -48,17 +46,35 @@ public class VideoManager : MonoBehaviour
 	// Play a video from a file path (e.g., file:///C:/path/to/video.mp4)
 	public void PlayVideo(string path)
 	{
+		if (statusText != null)
+			statusText.text = "Loading video...";
+
+		// If only a filename is provided, prepend the root directory and file://
+		string videoPath = path;
+		if (!string.IsNullOrEmpty(path) && !path.StartsWith("file://"))
+		{
+			// If path does not contain a directory separator, treat as filename
+			if (!path.Contains("/") && !path.Contains("\\"))
+			{
+				videoPath = $"file://{videoRootDirectory}/{path}";
+			}
+			else
+			{
+				videoPath = $"file://{path}";
+			}
+		}
+
 		if (is360Mode)
 		{
 			videoPlayer360.source = VideoSource.Url;
-			videoPlayer360.url = path;
+			videoPlayer360.url = videoPath;
 			videoPlayer360.Prepare();
 			videoPlayer360.prepareCompleted += OnVideoPrepared360;
 		}
 		else
 		{
 			videoPlayer2D.source = VideoSource.Url;
-			videoPlayer2D.url = path;
+			videoPlayer2D.url = videoPath;
 			videoPlayer2D.Prepare();
 			videoPlayer2D.prepareCompleted += OnVideoPrepared2D;
 		}
@@ -67,12 +83,16 @@ public class VideoManager : MonoBehaviour
 	private void OnVideoPrepared2D(VideoPlayer vp)
 	{
 		vp.prepareCompleted -= OnVideoPrepared2D;
+		if (statusText != null)
+			statusText.text = "Playing video (2D)";
 		vp.Play();
 	}
 
 	private void OnVideoPrepared360(VideoPlayer vp)
 	{
 		vp.prepareCompleted -= OnVideoPrepared360;
+		if (statusText != null)
+			statusText.text = "Playing video (360)";
 		vp.Play();
 
 		RenderSettings.skybox = skyboxMaterial;

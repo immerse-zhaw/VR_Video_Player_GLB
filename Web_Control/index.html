@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Video Player Control</title>
+    <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #222; color: #eee; padding: 1em; box-sizing: border-box; min-height: 100vh; }
+    #layout { display: flex; gap: 1em; align-items: stretch; justify-content: center; width: 100%; height: calc(100vh - 2em); flex-wrap: wrap; }
+    .column { display: flex; gap: 1em; align-items: stretch; flex: 1; min-width: 300px; height: fit-content; }
+    .column.vertical { flex-direction: column; height: 100%; }
+    #leftColumn { flex: 2; }
+    #middleColumn { flex: 1; max-width: 250px; }
+    #rightColumn { flex: 2; }
+    .panel { background: #333; padding: 1em; border-radius: 12px; box-shadow: 0 0 18px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 0.75em; flex: 1; }
+    .panel h2, .panel h3 { margin: 0 0 0.5em 0; padding: 0; }
+    #mainPanel.panel { flex: 2; min-height: 500px; align-items: center; }
+    #videoListPanel.panel { flex: 1; min-height: 300px; }
+    #videoUploadPanel.panel { flex: 0 0 140px; }
+    #glbPanel { flex: 0 0 140px; transition: background 0.2s ease, box-shadow 0.2s ease; }
+    #glbPreviewPanel { flex: 1; min-height: 300px; }
+
+    #glbPanel.drag-hover, #videoUploadPanel.drag-hover { background: #2d2d2d; box-shadow: 0 0 20px #005fa3; }
+    #glbDropZone { width: 100%; height: 80px; display: flex; align-items: center; justify-content: center; background: #232323; border-radius: 12px; color: #aaa; cursor: pointer; transition: background 0.2s ease, box-shadow 0.2s, border-color 0.2s; border: 2.5px dashed #1976d2; box-sizing: border-box; font-size: 0.9em; text-align: center; }
+    #glbDropText { width: 100%; text-align: center; font-size: 0.98em; line-height: 1.3; display: block; }
+    #glbDropZone.hover, #videoDropZone.hover { background: #2d3540; border-color: #42a5f5; box-shadow: 0 0 0 2px #1976d2; }
+    #glbUploadStatus, #videoUploadStatus { min-height: 1em; }
+    #glbPreview { width: 100%; height: 320px; border-radius: 10px; background: #111; display: none; }
+    #glbPreviewPlaceholder { padding: 1.5em; border-radius: 10px; background: #2c2c2c; text-align: center; color: #999; height: 200px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        input, button { margin: 0.5em; padding: 0.5em; border-radius: 5px; border: none; max-width: 100%; box-sizing: border-box; }
+        button { background: #0078d7; color: #fff; cursor: pointer; }
+        button.toggled { background: #005fa3; }
+        button:hover { background: #005fa3; }
+        .toggle-buttons { display: flex; justify-content: flex-end; gap: 1em; flex-wrap: wrap; }
+        .device-inputs { display: flex; gap: 0.5em; flex-wrap: wrap; align-items: center; justify-content: center; width: 100%; margin: 0 auto 1em auto; }
+        #videoContainer { margin: 2em auto 0 auto !important; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; }
+        #videoPreview, #videoPlaceholder { margin: 0 auto; }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            body { padding: 0.5em; }
+            #layout { gap: 0.5em; }
+            .column { min-width: 250px; }
+            #middleColumn { max-width: none; }
+            .panel { padding: 1em; }
+        }
+
+        @media (max-width: 900px) {
+            #layout { flex-direction: column; height: auto; }
+            .column { flex-direction: row; flex-wrap: wrap; min-width: 100%; }
+            .column.vertical { flex-direction: row; flex-wrap: wrap; }
+            #leftColumn, #middleColumn, #rightColumn { flex: none; max-width: 100%; }
+            .panel { min-width: 280px; max-width: 100%; margin: 0.25em; box-sizing: border-box; }
+            #mainPanel.panel { min-height: 400px; }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 0.25em; }
+            #layout { flex-direction: column; gap: 0.25em; }
+            .column { flex-direction: column; flex-wrap: nowrap; }
+            .column.vertical { flex-direction: column; }
+            #leftColumn, #middleColumn, #rightColumn { flex: none; max-width: 100%; }
+            .panel { min-width: 100%; max-width: 100%; margin: 0; padding: 0.75em; box-sizing: border-box; }
+            #mainPanel.panel { min-height: 350px; }
+            #videoListPanel.panel { min-height: 200px; }
+            #glbPreviewPanel { min-height: 250px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="layout">
+        <div id="leftColumn" class="column vertical">
+            <div id="mainPanel" class="panel">
+                <h2>VR Video Player Control</h2>
+                <div class="device-inputs">
+                    <input type="text" id="deviceIp" placeholder="Device IP (e.g. 192.168.1.10)" size="18">
+                    <input type="number" id="devicePort" placeholder="Port" min="1" max="65535" value="8080" style="width:80px;">
+                    <button onclick="addDevice()">Add Device</button>
+                </div>
+                <div id="deviceList" style="max-height:120px; overflow-y:auto; margin-bottom:1em; border:1px solid #444; border-radius:6px; background:#222; padding:0.5em 0;"></div>
+                <div style="display: flex; justify-content: center; margin-bottom: 1em;">
+                    <input type="text" id="videoPath" placeholder="file:///C:/path/to/video.mp4" size="40">
+                </div>
+                <div style="display: flex; justify-content: center; gap: 0.1em; margin-bottom: 1em;">
+                    <button onclick="sendPlay()">Play</button>
+                    <button id="pauseResumeBtn" onclick="togglePauseResume()">Pause</button>
+                    <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
+                </div>
+                <div id="status" style="margin-top:1em;"></div>
+                <div id="videoContainer" style="margin: 2em auto 0 auto !important; width:100%; max-width:400px; display: flex; flex-direction: column; align-items: center;">
+                    <video id="videoPreview" controls style="width:100%; display:none;"></video>
+                    <div id="videoPlaceholder" style="background:#555; padding:2em; text-align:center; border-radius:5px;">
+                        <p>Video Preview</p>
+                        <p style="font-size:0.8em; opacity:0.7;">Play an HTTP video URL to see preview here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="middleColumn" class="column vertical">
+            <div id="videoUploadPanel" class="panel">
+                <h3>Upload Video Files</h3>
+                <div id="videoDropZone" style="width: 100%; height: 80px; display: flex; align-items: center; justify-content: center; background: #232323; border-radius: 12px; color: #aaa; cursor: pointer; transition: background 0.2s ease, box-shadow 0.2s, border-color 0.2s; border: 2.5px dashed #1976d2; box-sizing: border-box; font-size: 0.9em; text-align: center;">
+                    <span id="videoDropText">Drag & Drop video files here (.mp4, .mov, .avi)</span>
+                </div>
+                <div id="videoUploadStatus" style="min-height: 1em;"></div>
+            </div>
+            <div id="videoListPanel" class="panel">
+                <h3 style="text-align:center;">Available Local Videos</h3>
+                <ul id="localVideos" style="list-style:none; padding:0; margin:0; height: 100%; overflow-y: auto; flex: 1;"></ul>
+            </div>
+        </div>
+        <div id="rightColumn" class="column vertical">
+            <div id="glbPanel" class="panel">
+                <h3>Import 3D Model (GLB/GLTF)</h3>
+                <div id="glbDropZone">
+                    <span id="glbDropText">Drag & Drop .glb or .gltf file here, <br> or click to browse</span>
+                </div>
+                <div id="glbUploadStatus"></div>
+            </div>
+            <div id="glbPreviewPanel" class="panel">
+                <h3>Model Preview</h3>
+                <model-viewer id="glbPreview" camera-controls autoplay></model-viewer>
+                <div id="glbPreviewPlaceholder">
+                    <p>No model selected.</p>
+                    <p style="font-size:0.85em; opacity:0.7;">Drop or browse a GLB/GLTF to preview it here.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <input type="file" id="glbFileInput" accept=".glb,.gltf" hidden>
+    <input type="file" id="videoFileInput" accept=".mp4,.mov,.avi,.mkv,.webm" multiple hidden>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script>
+        // Device management
+        const devices = [];
+        let is360Mode = false;
+        const WS_PORT_SCRIPT = 8080; // Change this if you want a different default port in the script
+        const LOCAL_PREVIEW_FOLDER = 'SampleVids';
+        const SERVER_URL = 'http://localhost:5174'; // Server API base URL
+        let previewAvailable = false;
+        let isLocalPreview = false;
+        let currentVideoPath = '';
+
+        function showPreviewPlaceholder(message) {
+            const videoPreview = document.getElementById('videoPreview');
+            const placeholder = document.getElementById('videoPlaceholder');
+            if (!videoPreview || !placeholder) return;
+
+            previewAvailable = false;
+            videoPreview._programmaticPause = true;
+            videoPreview._programmaticSeek = true;
+            videoPreview.pause();
+            videoPreview.onerror = null;
+            videoPreview.onloadeddata = null;
+            try {
+                videoPreview.removeAttribute('src');
+                videoPreview.load();
+            } catch (e) {}
+            videoPreview.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = message || '<p>Video Preview</p><p style="font-size:0.8em; opacity:0.7;">Play an HTTP video URL to see preview here</p>';
+        }
+
+        function setPreviewForPath(path) {
+            currentVideoPath = path || '';
+            const videoPreview = document.getElementById('videoPreview');
+            const placeholder = document.getElementById('videoPlaceholder');
+            if (!videoPreview || !placeholder) return;
+
+            videoPreview.onerror = null;
+            videoPreview.onloadeddata = null;
+
+            if (!path) {
+                showPreviewPlaceholder();
+                return;
+            }
+
+            const rawName = path.split('/').pop() || path;
+            const fileName = decodeURIComponent(rawName);
+            let source = path;
+
+            if (path.startsWith('http')) {
+                isLocalPreview = false;
+                source = path;
+            } else {
+                isLocalPreview = true;
+                const localRelativePath = `${LOCAL_PREVIEW_FOLDER}/${fileName}`;
+                source = encodeURI(localRelativePath);
+            }
+
+            previewAvailable = false;
+            videoPreview.style.display = 'block';
+            placeholder.style.display = 'none';
+
+            videoPreview.onerror = () => {
+                showPreviewPlaceholder(`<p>Preview unavailable for ${fileName}</p><p style="font-size:0.8em; opacity:0.7;">Ensure the file exists in ${LOCAL_PREVIEW_FOLDER}/</p>`);
+            };
+            videoPreview.onloadeddata = () => {
+                previewAvailable = true;
+                videoPreview._programmaticSeek = false;
+                videoPreview.onloadeddata = null;
+            };
+
+            videoPreview._programmaticPlay = true;
+            videoPreview._programmaticSeek = true;
+            videoPreview.src = source;
+            try {
+                videoPreview.load();
+                videoPreview.play().catch(() => {});
+            } catch (e) {}
+        }
+
+        function sendSeek(timeInSeconds) {
+            const time = Number(timeInSeconds);
+            if (Number.isNaN(time)) return;
+            getConnectedDevices().forEach(device => {
+                device.ws.send(JSON.stringify({ action: 'seek', time }));
+            });
+        }
+
+        function addDevice() {
+            const ip = document.getElementById('deviceIp').value.trim();
+            const port = document.getElementById('devicePort').value.trim();
+            if (!ip || !port) return;
+            const id = ip + ':' + port;
+            if (devices.find(d => d.id === id)) return;
+            const wsUrl = `ws://${ip}:${port}`;
+            const device = {
+                id,
+                ip,
+                port,
+                ws: null,
+                status: 'connecting',
+            };
+            devices.push(device);
+            updateDeviceList();
+            connectDevice(device);
+        }
+
+        function connectDevice(device) {
+            device.status = 'connecting';
+            updateDeviceList();
+            device.ws = new WebSocket(`ws://${device.ip}:${device.port}`);
+            device.ws.onopen = () => {
+                device.status = 'connected';
+                updateDeviceList();
+                requestVideoList(device);
+            };
+            device.ws.onclose = () => {
+                device.status = 'disconnected';
+                updateDeviceList();
+            };
+            device.ws.onerror = () => {
+                device.status = 'disconnected';
+                updateDeviceList();
+            };
+            device.ws.onmessage = (msg) => {
+                try {
+                    const data = JSON.parse(msg.data);
+                    if (data.type === 'videoList') {
+                        device.videoList = data.files;
+                        if (device === getSelectedDevice()) {
+                            updateVideoListPanel();
+                        }
+                    } else if (data.type === 'folderStructure') {
+                        console.log('=== FOLDER STRUCTURE RECEIVED ===');
+                        console.log('Root Path:', data.rootPath);
+                        console.log('Structure:', data.structure);
+                        logFolderStructureToConsole(data.structure, '');
+                        console.log('================================');
+                    }
+                    // Sync browser video preview with app pause/resume
+                    if (typeof data === 'string') return;
+                    const videoPreview = document.getElementById('videoPreview');
+                    const btn = document.getElementById('pauseResumeBtn');
+                    if (data.action === 'pause') {
+                        if (videoPreview && videoPreview.src && !videoPreview.paused) {
+                            videoPreview._programmaticPause = true;
+                            videoPreview.pause();
+                        }
+                        if (btn) btn.textContent = 'Resume';
+                    } else if (data.action === 'resume') {
+                        if (videoPreview && videoPreview.src && videoPreview.paused) {
+                            videoPreview._programmaticPlay = true;
+                            videoPreview.play().catch(() => {});
+                        }
+                        if (btn) btn.textContent = 'Pause';
+                    } else if (data.action === 'seek' && typeof data.time === 'number') {
+                        if (videoPreview && videoPreview.src) {
+                            videoPreview._programmaticSeek = true;
+                            try {
+                                videoPreview.currentTime = data.time;
+                            } catch (e) {}
+                        }
+                    }
+                } catch (e) {}
+            };
+        }
+
+        function requestVideoList(device) {
+            if (device && device.ws && device.ws.readyState === WebSocket.OPEN) {
+                device.ws.send(JSON.stringify({ action: 'listVideos' }));
+            }
+        }
+
+        function requestFolderStructure(device) {
+            if (device && device.ws && device.ws.readyState === WebSocket.OPEN) {
+                device.ws.send(JSON.stringify({ action: 'getFolderStructure' }));
+            }
+        }
+
+        function logFolderStructureToConsole(folder, indent) {
+            const icon = folder.isDirectory ? '📁' : '📄';
+            console.log(`${indent}${icon} ${folder.name}`);
+            if (folder.children) {
+                folder.children.forEach(child => {
+                    logFolderStructureToConsole(child, indent + '  ');
+                });
+            }
+        }
+
+
+
+        // Select the first connected device by default
+        function getSelectedDevice() {
+            return getConnectedDevices()[0] || null;
+        }
+
+        function updateVideoListPanel() {
+            const ul = document.getElementById('localVideos');
+            ul.innerHTML = '';
+            const device = getSelectedDevice();
+            if (!device || !device.videoList || device.videoList.length === 0) {
+                ul.innerHTML = '<li style="color:#aaa;text-align:center;">No videos found</li>';
+                return;
+            }
+            device.videoList.forEach(fullPath => {
+                const li = document.createElement('li');
+                li.style.padding = '0.5em 0.5em';
+                li.style.borderBottom = '1px solid #444';
+                li.style.cursor = 'pointer';
+                // Extract filename from fullPath
+                const name = fullPath.split('/').pop();
+                li.textContent = name;
+                li.onclick = () => playLocalVideo(fullPath);
+                ul.appendChild(li);
+            });
+        }
+
+        function playLocalVideo(fullPath) {
+            const device = getSelectedDevice();
+            if (!device) return;
+            device.ws.send(JSON.stringify({ action: 'play', path: fullPath }));
+            document.getElementById('videoPath').value = fullPath;
+            setPreviewForPath(fullPath);
+            const btn = document.getElementById('pauseResumeBtn');
+            if (btn) btn.textContent = 'Pause';
+        }
+
+        function updateDeviceList() {
+            const list = document.getElementById('deviceList');
+            list.innerHTML = '';
+            devices.forEach(device => {
+                const color = device.status === 'connected' ? '#0f0' : (device.status === 'connecting' ? '#ff0' : '#f00');
+                const statusText = device.status.charAt(0).toUpperCase() + device.status.slice(1);
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.justifyContent = 'space-between';
+                div.style.gap = '0.5em';
+                div.style.padding = '0.2em 1em';
+
+                // Device info
+                const infoSpan = document.createElement('span');
+                infoSpan.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};border:1px solid #333;"></span> <b>${device.ip}</b>`;
+
+                // Status
+                const statusSpan = document.createElement('span');
+                statusSpan.style.fontSize = '0.9em';
+                statusSpan.style.opacity = '0.7';
+                statusSpan.style.textAlign = 'right';
+                statusSpan.style.minWidth = '80px';
+                statusSpan.textContent = statusText;
+
+                // Reconnect button
+                const reconnectBtn = document.createElement('button');
+                reconnectBtn.textContent = 'Reconnect';
+                reconnectBtn.style.background = '#1976d2';
+                reconnectBtn.style.color = '#fff';
+                reconnectBtn.style.marginLeft = '0.5em';
+                reconnectBtn.onclick = () => {
+                    if (device.ws) device.ws.close();
+                    setTimeout(() => connectDevice(device), 200);
+                };
+
+                // Disconnect button
+                const disconnectBtn = document.createElement('button');
+                disconnectBtn.textContent = 'Disconnect';
+                disconnectBtn.style.background = '#d32f2f';
+                disconnectBtn.style.color = '#fff';
+                disconnectBtn.style.marginLeft = '0.2em';
+                disconnectBtn.onclick = () => {
+                    if (device.ws) device.ws.close();
+                };
+
+                div.appendChild(infoSpan);
+                div.appendChild(statusSpan);
+                div.appendChild(reconnectBtn);
+                div.appendChild(disconnectBtn);
+                list.appendChild(div);
+            });
+        }
+
+        function getConnectedDevices() {
+            return devices.filter(d => d.status === 'connected');
+        }
+
+        function setStatus(msg) {
+            document.getElementById('status').innerText = msg;
+        }
+
+        function toggleMode() {
+            is360Mode = !is360Mode;
+            const button = document.getElementById('toggleMode');
+            button.textContent = is360Mode ? 'Switch to 2D Mode' : 'Switch to 360 Mode';
+            getConnectedDevices().forEach(device => {
+                device.ws.send(JSON.stringify({ action: 'toggleMode', mode: is360Mode ? '360' : '2D' }));
+            });
+        }
+
+        function sendPlay() {
+            const path = document.getElementById('videoPath').value;
+            getConnectedDevices().forEach(device => {
+                device.ws.send(JSON.stringify({ action: 'play', path }));
+            });
+            setPreviewForPath(path);
+            const btn = document.getElementById('pauseResumeBtn');
+            if (btn) btn.textContent = 'Pause';
+        }
+
+
+        function togglePauseResume() {
+            const videoPreview = document.getElementById('videoPreview');
+            const btn = document.getElementById('pauseResumeBtn');
+            if (!btn) return;
+            if (previewAvailable && videoPreview && videoPreview.src && videoPreview.style.display !== 'none') {
+                if (videoPreview.paused) {
+                    getConnectedDevices().forEach(device => {
+                        device.ws.send(JSON.stringify({ action: 'resume' }));
+                    });
+                    videoPreview._programmaticPlay = true;
+                    videoPreview.play().catch(() => {});
+                    btn.textContent = 'Pause';
+                } else {
+                    getConnectedDevices().forEach(device => {
+                        device.ws.send(JSON.stringify({ action: 'pause' }));
+                    });
+                    videoPreview._programmaticPause = true;
+                    videoPreview.pause();
+                    btn.textContent = 'Resume';
+                }
+            } else {
+                if (btn.textContent === 'Pause') {
+                    getConnectedDevices().forEach(device => {
+                        device.ws.send(JSON.stringify({ action: 'pause' }));
+                    });
+                    btn.textContent = 'Resume';
+                } else {
+                    getConnectedDevices().forEach(device => {
+                        device.ws.send(JSON.stringify({ action: 'resume' }));
+                    });
+                    btn.textContent = 'Pause';
+                }
+            }
+        }
+
+        // --- Helper Functions ---
+
+        // --- GLB/GLTF Upload Logic ---
+        const glbPanel = document.getElementById('glbPanel');
+        const glbDropZone = document.getElementById('glbDropZone');
+        const glbDropText = document.getElementById('glbDropText');
+        const glbUploadStatus = document.getElementById('glbUploadStatus');
+        const glbFileInput = document.getElementById('glbFileInput');
+        const glbPreview = document.getElementById('glbPreview');
+        const glbPreviewPlaceholder = document.getElementById('glbPreviewPlaceholder');
+        let glbPreviewUrl = null;
+
+        // --- Video Upload Logic ---
+        const videoUploadPanel = document.getElementById('videoUploadPanel');
+        const videoDropZone = document.getElementById('videoDropZone');
+        const videoDropText = document.getElementById('videoDropText');
+        const videoUploadStatus = document.getElementById('videoUploadStatus');
+        const videoFileInput = document.getElementById('videoFileInput');
+
+        function resetDropZone() {
+            glbDropZone.classList.remove('hover');
+            glbPanel.classList.remove('drag-hover');
+            glbDropText.textContent = 'Drag & Drop .glb or .gltf file here, or click to browse';
+        }
+
+        let dragCounter = 0;
+
+        async function handleFileSelection(file) {
+            if (!file || !/\.(glb|gltf)$/i.test(file.name)) {
+                glbUploadStatus.style.color = '#f66';
+                glbUploadStatus.textContent = 'Only .glb or .gltf files are supported.';
+                return;
+            }
+
+            if (glbPreviewUrl) {
+                URL.revokeObjectURL(glbPreviewUrl);
+                glbPreviewUrl = null;
+            }
+
+            glbPreviewUrl = URL.createObjectURL(file);
+            glbPreview.src = glbPreviewUrl;
+            glbPreview.style.display = 'block';
+            glbPreviewPlaceholder.style.display = 'none';
+
+            glbUploadStatus.style.color = '#0f0';
+            glbUploadStatus.textContent = `Selected: ${file.name}`;
+
+            // Upload to ManageXR and save locally
+            await uploadGLBFile(file);
+
+            glbFileInput.value = '';
+        }
+
+        async function uploadGLBFile(file) {
+            try {
+                glbUploadStatus.style.color = '#fdd835';
+                glbUploadStatus.textContent = `Uploading ${file.name} to ManageXR...`;
+
+                // Upload to ManageXR API
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const uploadResponse = await fetch(`${SERVER_URL}/api/managexr/upload/file`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Upload failed with status ${uploadResponse.status}`);
+                }
+
+                glbUploadStatus.textContent = `Updating configuration...`;
+
+                // Update configuration to deploy to headsets
+                const configResponse = await fetch(`${SERVER_URL}/api/managexr/updateConfig`, {
+                    method: 'POST'
+                });
+
+                if (!configResponse.ok) {
+                    throw new Error(`Configuration update failed with status ${configResponse.status}`);
+                }
+
+                glbUploadStatus.style.color = '#0f0';
+                glbUploadStatus.textContent = `Successfully uploaded and deployed: ${file.name}`;
+
+                // Also send to connected devices via WebSocket
+                const connectedDevices = getConnectedDevices();
+                if (connectedDevices.length > 0) {
+                    const payload = JSON.stringify({ action: 'importGLB', name: file.name });
+                    connectedDevices.forEach(device => device.ws.send(payload));
+                }
+
+            } catch (error) {
+                glbUploadStatus.style.color = '#f66';
+                glbUploadStatus.textContent = `Upload failed: ${error.message}`;
+                console.error('GLB upload error:', error);
+            }
+        }
+
+        async function handleVideoSelection(files) {
+            if (!files || files.length === 0) {
+                videoUploadStatus.style.color = '#f66';
+                videoUploadStatus.textContent = 'No video files selected.';
+                return;
+            }
+
+            const videoExtensions = /\.(mp4|mov|avi|mkv|webm)$/i;
+            const validFiles = Array.from(files).filter(file => videoExtensions.test(file.name));
+            
+            if (validFiles.length === 0) {
+                videoUploadStatus.style.color = '#f66';
+                videoUploadStatus.textContent = 'Only video files (.mp4, .mov, .avi, .mkv, .webm) are supported.';
+                return;
+            }
+
+            videoUploadStatus.style.color = '#0f0';
+            videoUploadStatus.textContent = `Selected ${validFiles.length} video file(s)`;
+
+            // Upload each video file
+            for (const file of validFiles) {
+                await uploadVideoFile(file);
+            }
+
+            videoFileInput.value = '';
+        }
+
+        async function uploadVideoFile(file) {
+            try {
+                videoUploadStatus.style.color = '#fdd835';
+                videoUploadStatus.textContent = `Uploading ${file.name} to ManageXR...`;
+
+                // Upload to ManageXR API
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const uploadResponse = await fetch(`${SERVER_URL}/api/managexr/upload/file`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Upload failed with status ${uploadResponse.status}`);
+                }
+
+                videoUploadStatus.textContent = `Updating configuration...`;
+
+                // Update configuration to deploy to headsets
+                const configResponse = await fetch(`${SERVER_URL}/api/managexr/updateConfig`, {
+                    method: 'POST'
+                });
+
+                if (!configResponse.ok) {
+                    throw new Error(`Configuration update failed with status ${configResponse.status}`);
+                }
+
+                videoUploadStatus.style.color = '#0f0';
+                videoUploadStatus.textContent = `Successfully uploaded and deployed: ${file.name}`;
+
+                // Update the video preview if this is the first video or update local video list
+                setPreviewForPath(file.name);
+
+                // Request updated video list from connected devices
+                const connectedDevices = getConnectedDevices();
+                connectedDevices.forEach(device => {
+                    requestVideoList(device);
+                });
+
+            } catch (error) {
+                videoUploadStatus.style.color = '#f66';
+                videoUploadStatus.textContent = `Upload failed: ${error.message}`;
+                console.error('Video upload error:', error);
+            }
+        }
+
+        function resetDropZone() {
+            glbDropZone.classList.remove('hover');
+            glbPanel.classList.remove('drag-hover');
+            glbDropText.textContent = 'Drag & Drop .glb or .gltf file here, or click to browse';
+        }
+
+        function resetVideoDropZone() {
+            videoDropZone.classList.remove('hover');
+            videoUploadPanel.classList.remove('drag-hover');
+            videoDropText.textContent = 'Drag & Drop video files here (.mp4, .mov, .avi)';
+        }
+
+        glbDropZone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            glbDropZone.classList.add('hover');
+            glbPanel.classList.add('drag-hover');
+            glbDropText.textContent = 'Release to select this file';
+        });
+        glbDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        glbDropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) {
+                resetDropZone();
+                dragCounter = 0;
+            }
+        });
+        glbDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            resetDropZone();
+            const file = e.dataTransfer.files[0];
+            handleFileSelection(file);
+        });
+
+        glbDropZone.addEventListener('click', () => glbFileInput.click());
+        glbFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            handleFileSelection(file);
+        });
+
+        // --- Video Drop Zone Event Listeners ---
+        let videoDragCounter = 0;
+
+        videoDropZone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            videoDragCounter++;
+            videoDropZone.classList.add('hover');
+            videoUploadPanel.classList.add('drag-hover');
+            videoDropText.textContent = 'Release to upload video files';
+        });
+        videoDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        videoDropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            videoDragCounter--;
+            if (videoDragCounter <= 0) {
+                resetVideoDropZone();
+                videoDragCounter = 0;
+            }
+        });
+        videoDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            videoDragCounter = 0;
+            resetVideoDropZone();
+            const files = e.dataTransfer.files;
+            handleVideoSelection(files);
+        });
+
+        videoDropZone.addEventListener('click', () => videoFileInput.click());
+        videoFileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            handleVideoSelection(files);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (glbPreviewUrl) {
+                URL.revokeObjectURL(glbPreviewUrl);
+            }
+        });
+        // --- End GLB/GLTF and Video Upload Logic ---
+
+        // Test server connection
+        async function testServerConnection() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/health`);
+                if (response.ok) {
+                    console.log('✅ Server connection successful');
+                } else {
+                    console.warn('⚠️ Server responded with error:', response.status);
+                }
+            } catch (error) {
+                console.error('❌ Server connection failed:', error.message);
+                console.error('Make sure the server is running on', SERVER_URL);
+            }
+        }
+
+        window.onload = () => {
+            testServerConnection();
+            updateDeviceList();
+            updateVideoListPanel();
+            showPreviewPlaceholder();
+            // Set initial pause/resume button state and sync preview events to websocket
+            const videoPreview = document.getElementById('videoPreview');
+            const btn = document.getElementById('pauseResumeBtn');
+            if (videoPreview && btn) {
+                videoPreview._programmaticPlay = false;
+                videoPreview._programmaticPause = false;
+                videoPreview._programmaticSeek = false;
+                videoPreview.onplay = () => {
+                    previewAvailable = true;
+                    btn.textContent = 'Pause';
+                    // If play was triggered by user (not programmatically), send resume to websocket
+                    if (!videoPreview._programmaticPlay) {
+                        getConnectedDevices().forEach(device => {
+                            device.ws.send(JSON.stringify({ action: 'resume' }));
+                        });
+                    }
+                    videoPreview._programmaticPlay = false;
+                };
+                videoPreview.onpause = () => {
+                    btn.textContent = 'Resume';
+                    // If pause was triggered by user (not programmatically), send pause to websocket
+                    if (!videoPreview._programmaticPause) {
+                        getConnectedDevices().forEach(device => {
+                            device.ws.send(JSON.stringify({ action: 'pause' }));
+                        });
+                    }
+                    videoPreview._programmaticPause = false;
+                };
+                videoPreview.addEventListener('seeked', () => {
+                    if (videoPreview._programmaticSeek) {
+                        videoPreview._programmaticSeek = false;
+                        return;
+                    }
+                    if (previewAvailable) {
+                        sendSeek(videoPreview.currentTime);
+                    }
+                });
+            }
+        };
+
+        // Console helper functions (call from browser console) - Defined at end to ensure all dependencies are loaded
+        window.getFolderStructure = function() {
+            const device = getSelectedDevice();
+            if (device) {
+                console.log('Requesting folder structure from headset...');
+                console.log('Device:', device.name, 'Status:', device.status);
+                console.log('WebSocket State:', device.ws ? device.ws.readyState : 'No WebSocket');
+                if (device.ws && device.ws.readyState === WebSocket.OPEN) {
+                    console.log('Sending getFolderStructure command...');
+                    requestFolderStructure(device);
+                } else {
+                    console.log('WebSocket not connected. Current state:', device.ws ? device.ws.readyState : 'undefined');
+                    console.log('WebSocket states: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED');
+                }
+            } else {
+                console.log('No connected device found. Please connect a headset first.');
+                console.log('Available devices:', devices.length);
+            }
+        };
+
+        window.listConnectedDevices = function() {
+            const devices = getConnectedDevices();
+            console.log('Connected devices:', devices.length);
+            devices.forEach((device, index) => {
+                console.log(`  ${index + 1}. ${device.name || 'Unnamed Device'} (${device.ip}:${device.port}) - Status: ${device.status}`);
+                if (device.ws) {
+                    console.log(`    WebSocket State: ${device.ws.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)`);
+                }
+            });
+        };
+
+        // Test WebSocket communication
+        window.testWebSocket = function() {
+            const device = getSelectedDevice();
+            if (device && device.ws && device.ws.readyState === WebSocket.OPEN) {
+                console.log('Testing WebSocket with listVideos command...');
+                device.ws.send(JSON.stringify({ action: 'listVideos' }));
+                console.log('Command sent. Check for video list response.');
+            } else {
+                console.log('No connected WebSocket available for testing.');
+            }
+        };
+
+        // Debug: Log that functions are defined
+        console.log('VR Video Player console functions loaded:');
+        console.log('- getFolderStructure() - Request folder structure from headset');
+        console.log('- listConnectedDevices() - Show connected devices and WebSocket status');
+        console.log('- testWebSocket() - Test WebSocket with a known working command');
+    </script>
+</body>
+</html>
