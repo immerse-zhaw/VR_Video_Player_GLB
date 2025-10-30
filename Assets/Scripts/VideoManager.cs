@@ -1,12 +1,12 @@
 using TMPro;
 using System;
+using System.IO;
 using UnityEngine;
 using UnityEngine.Video;
 
 public class VideoManager : MonoBehaviour
 {
-	// Use root directory directly for videos
-	private string videoRootDirectory = "/sdcard";
+	private string videoRootDirectory;
 	public TextMeshProUGUI statusText; // Assign this in Unity inspector if you want status display
 	public VideoPlayer videoPlayer2D;
 	public VideoPlayer videoPlayer360;
@@ -16,7 +16,9 @@ public class VideoManager : MonoBehaviour
 
 	void Awake()
 	{
-		// videoRootDirectory is set to /storage/emulated/0 for direct root access
+		// Use Application.persistentDataPath/Content/Videos for video storage
+		videoRootDirectory = Path.Combine(Application.persistentDataPath, "Content", "Videos");
+		EnsureDirectoriesExist();
 
 		if (videoPlayer2D == null)
 			videoPlayer2D = GetComponent<VideoPlayer>();
@@ -29,6 +31,38 @@ public class VideoManager : MonoBehaviour
 		}
 
 		ApplyDefaultSkybox();
+	}
+
+	private void EnsureDirectoriesExist()
+	{
+		try
+		{
+			string contentPath = Path.Combine(Application.persistentDataPath, "Content");
+			string videosPath = Path.Combine(contentPath, "Videos");
+			string glbPath = Path.Combine(contentPath, "GLB");
+			
+			if (!Directory.Exists(contentPath))
+			{
+				Directory.CreateDirectory(contentPath);
+				Debug.Log($"Created Content directory: {contentPath}");
+			}
+			
+			if (!Directory.Exists(videosPath))
+			{
+				Directory.CreateDirectory(videosPath);
+				Debug.Log($"Created Videos directory: {videosPath}");
+			}
+			
+			if (!Directory.Exists(glbPath))
+			{
+				Directory.CreateDirectory(glbPath);
+				Debug.Log($"Created GLB directory: {glbPath}");
+			}
+		}
+		catch (System.Exception ex)
+		{
+			Debug.LogError($"Failed to create directories: {ex.Message}");
+		}
 	}
 
 	private void ApplyDefaultSkybox()

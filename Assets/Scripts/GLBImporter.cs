@@ -15,16 +15,38 @@ public class GLBImporter : MonoBehaviour
 
     void Awake()
     {
-        // glbDirectory = Path.Combine(Application.persistentDataPath, "GLB_Objects");
-        // if (!Directory.Exists(glbDirectory))
-        // {
-        //     Directory.CreateDirectory(glbDirectory);
-        //     Debug.Log($"Created missing folder: {glbDirectory}");
-        // }
-        // Debug.Log($"GLB directory: {glbDirectory}");
-        glbDirectory = "/sdcard"; // Use /sdcard as root directory for Android
+        // Use Application.persistentDataPath/Content/GLB for GLB storage
+        glbDirectory = Path.Combine(Application.persistentDataPath, "Content", "GLB");
+        EnsureGLBDirectoryExists();
         if (statusText != null)
             statusText.text = "Ready to import GLB.";
+    }
+
+    private void EnsureGLBDirectoryExists()
+    {
+        try
+        {
+            string contentPath = Path.Combine(Application.persistentDataPath, "Content");
+            string glbPath = Path.Combine(contentPath, "GLB");
+            
+            if (!Directory.Exists(contentPath))
+            {
+                Directory.CreateDirectory(contentPath);
+                Debug.Log($"Created Content directory: {contentPath}");
+            }
+            
+            if (!Directory.Exists(glbPath))
+            {
+                Directory.CreateDirectory(glbPath);
+                Debug.Log($"Created GLB directory: {glbPath}");
+            }
+            
+            Debug.Log($"GLB directory ready: {glbDirectory}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"Failed to create GLB directory: {ex.Message}");
+        }
     }
 
     public async void ImportGLB(string fileName)
