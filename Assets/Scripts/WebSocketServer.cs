@@ -142,7 +142,13 @@ public class WebSocketServer : MonoBehaviour
         
         var fullPaths = new List<string>();
         foreach (var file in files)
-            fullPaths.Add("file:///" + file.Replace("\\", "/"));
+        {
+            // Only add file:// prefix for local files, not HTTP URLs
+            if (file.StartsWith("http://") || file.StartsWith("https://"))
+                fullPaths.Add(file);
+            else
+                fullPaths.Add("file:///" + file.Replace("\\", "/"));
+        }
         var response = new VideoListResponse { type = "videoList", files = fullPaths.ToArray() };
         socket.Send(JsonUtility.ToJson(response));
     }
@@ -166,7 +172,13 @@ public class WebSocketServer : MonoBehaviour
         
         var fullPaths = new List<string>();
         foreach (var file in files)
-            fullPaths.Add("file:///" + file.Replace("\\", "/"));
+        {
+            // Only add file:// prefix for local files, not HTTP URLs
+            if (file.StartsWith("http://") || file.StartsWith("https://"))
+                fullPaths.Add(file);
+            else
+                fullPaths.Add("file:///" + file.Replace("\\", "/"));
+        }
         var response = new GLBListResponse { type = "glbList", files = fullPaths.ToArray() };
         socket.Send(JsonUtility.ToJson(response));
     }

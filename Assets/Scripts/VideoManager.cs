@@ -77,21 +77,32 @@ public class VideoManager : MonoBehaviour
 		}
 	}
 
-	// Play a video from a file path (e.g., file:///C:/path/to/video.mp4)
+	// Play a video from a file path (e.g., file:///C:/path/to/video.mp4) or HTTP URL
 	public void PlayVideo(string path)
 	{
 		if (statusText != null)
 			statusText.text = "Loading video...";
 
-		// If only a filename is provided, prepend the root directory and file://
+		// Handle different path types
 		string videoPath = path;
-		if (!string.IsNullOrEmpty(path) && !path.StartsWith("file://"))
+		if (!string.IsNullOrEmpty(path))
 		{
-			// If path does not contain a directory separator, treat as filename
-			if (!path.Contains("/") && !path.Contains("\\"))
+			// If it's already an HTTP URL, use as-is
+			if (path.StartsWith("http://") || path.StartsWith("https://"))
+			{
+				videoPath = path;
+			}
+			// If it's already a file:// URL, use as-is
+			else if (path.StartsWith("file://"))
+			{
+				videoPath = path;
+			}
+			// If only a filename is provided, prepend the root directory and file://
+			else if (!path.Contains("/") && !path.Contains("\\"))
 			{
 				videoPath = $"file://{videoRootDirectory}/{path}";
 			}
+			// Otherwise treat as local file path
 			else
 			{
 				videoPath = $"file://{path}";
