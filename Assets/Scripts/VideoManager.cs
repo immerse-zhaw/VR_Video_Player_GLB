@@ -12,6 +12,8 @@ public class VideoManager : MonoBehaviour
 	public VideoPlayer videoPlayer360;
 	public Material skyboxMaterial;
 	public Material defaultSkyboxMaterial;
+	public Material normalFloorMaterial;
+	public Material transparentFloorMaterial;
 	private bool is360Mode = false;
 	public GameObject floorPlane;
 
@@ -31,7 +33,6 @@ public class VideoManager : MonoBehaviour
 				videoPlayer360 = moviePlayer360.GetComponent<VideoPlayer>();
 		}
 
-		floorPlane.SetActive(!is360Mode);
 		ApplyDefaultSkybox();
 	}
 
@@ -64,18 +65,6 @@ public class VideoManager : MonoBehaviour
 		catch (System.Exception ex)
 		{
 			Debug.LogError($"Failed to create directories: {ex.Message}");
-		}
-	}
-
-	private void ApplyDefaultSkybox()
-	{
-		if (defaultSkyboxMaterial != null)
-		{
-			RenderSettings.skybox = defaultSkyboxMaterial;
-		}
-		else
-		{
-			Debug.LogError("Default skybox material is not assigned.");
 		}
 	}
 
@@ -234,10 +223,21 @@ public class VideoManager : MonoBehaviour
 
 		is360Mode = enable360;
 
+		if (floorPlane != null)
+		{
+			var renderer = floorPlane.GetComponent<Renderer>();
+			if (renderer != null)
+			{
+				if (is360Mode && transparentFloorMaterial != null)
+					renderer.material = transparentFloorMaterial;
+				else if (!is360Mode && normalFloorMaterial != null)
+					renderer.material = normalFloorMaterial;
+			}
+		}
+
 		if (is360Mode)
 		{
 			// Switch to 360 mode
-			floorPlane.SetActive(false);
 			videoPlayer2D.gameObject.SetActive(false);
 			videoPlayer360.gameObject.SetActive(true);
 
@@ -247,7 +247,8 @@ public class VideoManager : MonoBehaviour
 				videoPlayer360.source = VideoSource.Url;
 				videoPlayer360.url = currentUrl;
 				videoPlayer360.Prepare();
-				videoPlayer360.prepareCompleted += (vp) => {
+				videoPlayer360.prepareCompleted += (vp) =>
+				{
 					vp.prepareCompleted -= OnVideoPrepared360;
 					vp.time = currentTime;
 					if (wasPlaying) vp.Play();
@@ -258,7 +259,6 @@ public class VideoManager : MonoBehaviour
 		else
 		{
 			// Switch to 2D mode
-			floorPlane.SetActive(true);
 			videoPlayer360.gameObject.SetActive(false);
 			videoPlayer2D.gameObject.SetActive(true);
 
@@ -268,7 +268,8 @@ public class VideoManager : MonoBehaviour
 				videoPlayer2D.source = VideoSource.Url;
 				videoPlayer2D.url = currentUrl;
 				videoPlayer2D.Prepare();
-				videoPlayer2D.prepareCompleted += (vp) => {
+				videoPlayer2D.prepareCompleted += (vp) =>
+				{
 					vp.prepareCompleted -= OnVideoPrepared2D;
 					vp.time = currentTime;
 					if (wasPlaying) vp.Play();
@@ -277,4 +278,17 @@ public class VideoManager : MonoBehaviour
 			}
 		}
 	}
+
+	private void ApplyDefaultSkybox()
+	{
+		if (defaultSkyboxMaterial != null)
+		{
+			RenderSettings.skybox = defaultSkyboxMaterial;
+		}
+		else
+		{
+			Debug.LogError("Default skybox material is not assigned.");
+		}
+	}
+	
 }

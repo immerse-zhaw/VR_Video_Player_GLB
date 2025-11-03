@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 2100000, guid: 1a1c12884355449498661554bbc76f96, type: 2}
+  m_SkyboxMaterial: {fileID: 2100000, guid: 0146be515e14a2d4383a836f69e5eec4, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -979,7 +979,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 40d5f39ae0668b14f9d71f56c2981be7, type: 2}
+  - {fileID: 2100000, guid: 8277198ec0924384ca46355178c0195b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1311,6 +1311,8 @@ MonoBehaviour:
   videoPlayer360: {fileID: 1635584576}
   skyboxMaterial: {fileID: 2100000, guid: 1a1c12884355449498661554bbc76f96, type: 2}
   defaultSkyboxMaterial: {fileID: 2100000, guid: 0146be515e14a2d4383a836f69e5eec4, type: 2}
+  normalFloorMaterial: {fileID: 2100000, guid: 8277198ec0924384ca46355178c0195b, type: 2}
+  transparentFloorMaterial: {fileID: 2100000, guid: f90098a2614f29642a30507202790fe9, type: 2}
   floorPlane: {fileID: 1249617917}
 --- !u!1 &1635584575
 GameObject:
