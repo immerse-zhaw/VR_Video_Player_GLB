@@ -502,7 +502,7 @@ GameObject:
   - component: {fileID: 556308830}
   - component: {fileID: 556308829}
   m_Layer: 5
-  m_Name: 2DMovieCanvas
+  m_Name: 2DMoviePlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -761,12 +761,12 @@ GameObject:
   - component: {fileID: 1093211185}
   - component: {fileID: 1093211184}
   m_Layer: 5
-  m_Name: Canvas
+  m_Name: DebugCanvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1093211183
 RectTransform:
   m_ObjectHideFlags: 0
@@ -926,7 +926,7 @@ GameObject:
   - component: {fileID: 1249617918}
   - component: {fileID: 1249617922}
   m_Layer: 0
-  m_Name: Plane
+  m_Name: FloorPlane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1310,7 +1310,8 @@ MonoBehaviour:
   videoPlayer2D: {fileID: 584604340}
   videoPlayer360: {fileID: 1635584576}
   skyboxMaterial: {fileID: 2100000, guid: 1a1c12884355449498661554bbc76f96, type: 2}
-  defaultSkyboxMaterial: {fileID: 2100000, guid: bba51330a05c9594d890e911250e75b9, type: 2}
+  defaultSkyboxMaterial: {fileID: 2100000, guid: 0146be515e14a2d4383a836f69e5eec4, type: 2}
+  floorPlane: {fileID: 1249617917}
 --- !u!1 &1635584575
 GameObject:
   m_ObjectHideFlags: 0
@@ -1814,10 +1815,10 @@ SceneRoots:
   - {fileID: 756192408}
   - {fileID: 2092139010}
   - {fileID: 1249617921}
-  - {fileID: 556308832}
-  - {fileID: 1390888376}
   - {fileID: 461677921}
   - {fileID: 1192474402}
+  - {fileID: 1390888376}
   - {fileID: 1635584577}
+  - {fileID: 556308832}
   - {fileID: 1908973239}
   - {fileID: 1093211183}

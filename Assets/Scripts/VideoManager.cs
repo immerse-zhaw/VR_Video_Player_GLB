@@ -7,12 +7,13 @@ using UnityEngine.Video;
 public class VideoManager : MonoBehaviour
 {
 	private string videoRootDirectory;
-	public TextMeshProUGUI statusText; // Assign this in Unity inspector if you want status display
+	public TextMeshProUGUI statusText; 
 	public VideoPlayer videoPlayer2D;
 	public VideoPlayer videoPlayer360;
 	public Material skyboxMaterial;
 	public Material defaultSkyboxMaterial;
 	private bool is360Mode = false;
+	public GameObject floorPlane;
 
 	void Awake()
 	{
@@ -30,6 +31,7 @@ public class VideoManager : MonoBehaviour
 				videoPlayer360 = moviePlayer360.GetComponent<VideoPlayer>();
 		}
 
+		floorPlane.SetActive(!is360Mode);
 		ApplyDefaultSkybox();
 	}
 
@@ -235,6 +237,7 @@ public class VideoManager : MonoBehaviour
 		if (is360Mode)
 		{
 			// Switch to 360 mode
+			floorPlane.SetActive(false);
 			videoPlayer2D.gameObject.SetActive(false);
 			videoPlayer360.gameObject.SetActive(true);
 
@@ -255,6 +258,7 @@ public class VideoManager : MonoBehaviour
 		else
 		{
 			// Switch to 2D mode
+			floorPlane.SetActive(true);
 			videoPlayer360.gameObject.SetActive(false);
 			videoPlayer2D.gameObject.SetActive(true);
 
