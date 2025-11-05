@@ -89,7 +89,7 @@ public class WebSocketServer : MonoBehaviour
                 break;
             case "downloadFile":
                 if (!string.IsNullOrEmpty(cmd.url) && !string.IsNullOrEmpty(cmd.filename))
-                    EnqueueOnMainThread(() => HandleDownloadFile(cmd.url, cmd.filename, cmd.folder));
+                    EnqueueOnMainThread(() => HandleDownloadFile(socket, cmd.url, cmd.filename, cmd.folder));
                 break;
             default:
                 Debug.LogWarning($"Unhandled WebSocket action: {cmd.action}");
@@ -183,30 +183,121 @@ public class WebSocketServer : MonoBehaviour
         socket.Send(JsonUtility.ToJson(response));
     }
 
-    private void HandleDownloadFile(string url, string filename, string folder)
+    private void HandleDownloadFile(IWebSocketConnection socket, string url, string filename, string folder)
     {
-        Debug.Log($"Download request: {filename} from {url} to folder {folder}");
-        StartCoroutine(DownloadFileCoroutine(url, filename, folder));
+        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(filename))
+        {
+            Debug.LogWarning("Download request missing url or filename");
+            return;
+        }
+
+        string safeFileName = Path.GetFileName(filename);
+        string targetDirectory = ResolveDownloadDirectory(folder);
+
+        try
+        {
+            Directory.CreateDirectory(targetDirectory);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Failed to prepare download folder '{targetDirectory}': {ex.Message}");
+            SendDownloadStatus(socket, "failed", safeFileName, folder, 0f, "Unable to create target directory");
+            return;
+        }
+
+        Debug.Log($"Download request: {safeFileName} from {url} to folder {targetDirectory}");
+        StartCoroutine(DownloadFileCoroutine(socket, url, safeFileName, targetDirectory, folder));
     }
 
-    private System.Collections.IEnumerator DownloadFileCoroutine(string url, string filename, string folder)
+    private System.Collections.IEnumerator DownloadFileCoroutine(IWebSocketConnection socket, string url, string filename, string targetDirectory, string folderLabel)
     {
-    string saveFolder = Path.Combine(Application.persistentDataPath, "Content", "Videos");
-    Directory.CreateDirectory(saveFolder);
-    string savePath = Path.Combine(saveFolder, filename);
+        string savePath = Path.Combine(targetDirectory, filename);
+        SendDownloadStatus(socket, "started", filename, folderLabel, 0f, "Starting download");
 
         using (UnityEngine.Networking.UnityWebRequest uwr = UnityEngine.Networking.UnityWebRequest.Get(url))
         {
-            yield return uwr.SendWebRequest();
+            var asyncOperation = uwr.SendWebRequest();
+            float lastReported = -0.1f;
+
+            while (!asyncOperation.isDone)
+            {
+                float progress = Mathf.Clamp01(uwr.downloadProgress);
+                if (progress - lastReported >= 0.05f)
+                {
+                    lastReported = progress;
+                    SendDownloadStatus(socket, "progress", filename, folderLabel, progress * 100f, null);
+                }
+                yield return null;
+            }
+
+            float finalProgress = Mathf.Clamp01(uwr.downloadProgress) * 100f;
+
             if (uwr.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
             {
-                File.WriteAllBytes(savePath, uwr.downloadHandler.data);
-                Debug.Log($"File downloaded and saved to: {savePath}");
+                try
+                {
+                    File.WriteAllBytes(savePath, uwr.downloadHandler.data);
+                    Debug.Log($"File downloaded and saved to: {savePath}");
+                    SendDownloadStatus(socket, "completed", filename, folderLabel, 100f, "Download complete");
+
+                    if (string.Equals(folderLabel, "GLB", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SendGLBList(socket);
+                    }
+                    else
+                    {
+                        SendVideoList(socket);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Failed to save downloaded file: {ex.Message}");
+                    SendDownloadStatus(socket, "failed", filename, folderLabel, finalProgress, "Failed to save file");
+                }
             }
             else
             {
-                Debug.LogError($"Download failed: {uwr.error}");
+                string errorMessage = string.IsNullOrEmpty(uwr.error) ? "Unknown download error" : uwr.error;
+                Debug.LogError($"Download failed: {errorMessage}");
+                SendDownloadStatus(socket, "failed", filename, folderLabel, finalProgress, errorMessage);
             }
+        }
+    }
+
+    private string ResolveDownloadDirectory(string folder)
+    {
+        string contentRoot = Path.Combine(Application.persistentDataPath, "Content");
+
+        if (string.Equals(folder, "GLB", StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.Combine(contentRoot, "GLB");
+        }
+
+        return Path.Combine(contentRoot, "Videos");
+    }
+
+    private void SendDownloadStatus(IWebSocketConnection socket, string state, string filename, string folder, float progress, string message)
+    {
+        if (socket == null)
+            return;
+
+        var response = new DownloadStatusResponse
+        {
+            type = "downloadStatus",
+            state = state,
+            filename = filename,
+            folder = folder,
+            progress = progress,
+            message = message
+        };
+
+        try
+        {
+            socket.Send(JsonUtility.ToJson(response));
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"Failed to send download status update: {ex.Message}");
         }
     }
    
@@ -250,5 +341,16 @@ public class WebSocketServer : MonoBehaviour
     {
         public string type;
         public string[] files;
+    }
+
+    [Serializable]
+    internal class DownloadStatusResponse
+    {
+        public string type;
+        public string state;
+        public string filename;
+        public string folder;
+        public float progress;
+        public string message;
     }
 }

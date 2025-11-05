@@ -9,12 +9,12 @@
     #layout { display: flex; gap: 1em; align-items: stretch; justify-content: center; width: 100%; height: calc(100vh - 2em); flex-wrap: wrap; }
     .column { display: flex; gap: 1em; align-items: stretch; flex: 1; min-width: 300px; height: fit-content; }
     .column.vertical { flex-direction: column; height: 100%; }
-    #leftColumn { flex: 2; }
-    #middleColumn { flex: 1; max-width: 250px; }
-    #rightColumn { flex: 2; }
+    #leftColumn { flex: 1; }
+    #middleColumn { flex: 2; max-width: 400px; }
+    #rightColumn { flex: 1; }
     .panel { background: #333; padding: 1em; border-radius: 12px; box-shadow: 0 0 18px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 0.75em; flex: 1; }
     .panel h2, .panel h3 { margin: 0 0 0.5em 0; padding: 0; }
-    #mainPanel.panel { flex: 2; min-height: 500px; align-items: center; }
+    #mainPanel.panel { flex: 2; min-height: 500px; align-items: stretch; justify-content: space-between; }
     #videoListPanel.panel { flex: 1; min-height: 300px; }
     #videoUploadPanel.panel { flex: 0 0 140px; }
     #glbPanel { flex: 0 0 140px; transition: background 0.2s ease, box-shadow 0.2s ease; }
@@ -33,15 +33,37 @@
         button:hover { background: #005fa3; }
         .toggle-buttons { display: flex; justify-content: flex-end; gap: 1em; flex-wrap: wrap; }
         .device-inputs { display: flex; gap: 0.5em; flex-wrap: wrap; align-items: center; justify-content: center; width: 100%; margin: 0 auto 1em auto; }
-        #videoContainer { margin: 2em auto 0 auto !important; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; }
-        #videoPreview, #videoPlaceholder { margin: 0 auto; }
+        #videoContainer { margin: 1em auto 0 auto !important; width: 100%; max-width: 800px; display: flex; flex-direction: column; align-items: center; flex: 1; }
+        #videoPreview, #videoPlaceholder { margin: 0 auto; width: 100%; }
+    #videoPreview { height: auto; aspect-ratio: 16/9; object-fit: contain; max-height: 400px; }
+    #videoPlaceholder { aspect-ratio: 16/9; max-height: 400px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    #deviceList { max-height: 150px; overflow-y: auto; border: 1px solid #444; border-radius: 8px; background: #222; padding: 0.35em 0.5em; display: flex; flex-direction: column; gap: 0.35em; scrollbar-width: thin; }
+    #deviceList::-webkit-scrollbar { width: 6px; }
+    #deviceList::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+    .device-entry { background: #2a2a2a; border-radius: 6px; padding: 0.45em 0.55em; display: flex; flex-direction: column; gap: 0.35em; font-size: 0.85em; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03); }
+    .device-entry-header { display: flex; align-items: center; gap: 0.5em; }
+    .device-info { display: flex; align-items: center; gap: 0.4em; font-weight: 600; }
+    .device-status-indicator { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #111; display: inline-block; }
+    .device-status-connected { background: #4caf50; }
+    .device-status-connecting { background: #ffeb3b; }
+    .device-status-disconnected { background: #f44336; }
+    .device-entry-buttons { margin-left: auto; display: flex; align-items: center; gap: 0.3em; }
+    .device-entry-buttons button { font-size: 0.72em; padding: 0.25em 0.6em; border-radius: 4px; }
+    .device-entry-status { font-size: 0.72em; color: #bbb; display: flex; justify-content: space-between; align-items: center; gap: 0.3em; }
+    .device-progress-wrapper { display: flex; flex-direction: column; gap: 0.25em; }
+    .device-progress-label { font-size: 0.7em; color: #9cd3ff; }
+    .device-progress { height: 6px; background: #1a1a1a; border-radius: 4px; overflow: hidden; }
+    .device-progress-bar { height: 100%; width: 0%; background: #42a5f5; transition: width 0.2s ease; }
+    .device-progress-bar.complete { background: #66bb6a; }
+    .device-progress-bar.failed { background: #ef5350; }
+    #status { min-height: 1.2em; font-size: 0.85em; text-align: center; color: #8bc34a; }
 
         /* Responsive Design */
         @media (max-width: 1200px) {
             body { padding: 0.5em; }
             #layout { gap: 0.5em; }
             .column { min-width: 250px; }
-            #middleColumn { max-width: none; }
+            #middleColumn { max-width: 350px; }
             .panel { padding: 1em; }
         }
 
@@ -72,29 +94,29 @@
         <div id="leftColumn" class="column vertical">
             <div id="mainPanel" class="panel">
                 <h2>VR Video Player Control</h2>
-                <div class="device-inputs">
-                    <input type="text" id="deviceIp" placeholder="Device IP (e.g. 192.168.1.10)" size="18">
-                    <input type="number" id="devicePort" placeholder="Port" min="1" max="65535" value="8080" style="width:80px;">
-                    <button onclick="addDevice()">Add Device</button>
-                </div>
-                <div id="deviceList" style="max-height:120px; overflow-y:auto; margin-bottom:1em; border:1px solid #444; border-radius:6px; background:#222; padding:0.5em 0;"></div>
-                <div style="display: flex; flex-direction: column; gap: 0.5em; margin-bottom: 1em; align-items: center;">
-                    <input type="text" id="videoPath" placeholder="Enter video URL (http://...) or local filename" size="50" style="text-align: center;">
-                    <div style="font-size: 0.85em; color: #aaa; text-align: center; max-width: 500px; line-height: 1.3;">
-                        • HTTP/HTTPS URLs for streaming<br>
-                        • Local filenames from Content/Videos folder<br>
-                        • Full file paths (file:///path/to/video.mp4)
+                <div style="display: flex; flex-direction: column; gap: 0.75em; margin-bottom: 1em;">
+                    <div class="device-inputs">
+                        <input type="text" id="deviceIp" placeholder="Device IP (e.g. 192.168.1.10)" size="18">
+                        <input type="number" id="devicePort" placeholder="Port" min="1" max="65535" value="8080" style="width:80px;">
+                        <button onclick="addDevice()">Add Device</button>
                     </div>
+                    <div id="deviceList"></div>
+                    <div style="display: flex; flex-direction: column; gap: 0.3em; align-items: center;">
+                        <input type="text" id="videoPath" placeholder="Enter video URL (http://...) or local filename" size="50" style="text-align: center;">
+                        <div style="font-size: 0.8em; color: #aaa; text-align: center; line-height: 1.2;">
+                            HTTP/HTTPS URLs • Local filenames • Full file paths
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 0.5em;">
+                        <button onclick="sendPlay()">Play</button>
+                        <button id="pauseResumeBtn" onclick="togglePauseResume()">Pause</button>
+                        <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
+                    </div>
+                    <div id="status"></div>
                 </div>
-                <div style="display: flex; justify-content: center; gap: 0.1em; margin-bottom: 1em;">
-                    <button onclick="sendPlay()">Play</button>
-                    <button id="pauseResumeBtn" onclick="togglePauseResume()">Pause</button>
-                    <button id="toggleMode" onclick="toggleMode()">Switch to 360 Mode</button>
-                </div>
-                <div id="status" style="margin-top:1em;"></div>
-                <div id="videoContainer" style="margin: 2em auto 0 auto !important; width:100%; max-width:400px; display: flex; flex-direction: column; align-items: center;">
+                <div id="videoContainer">
                     <video id="videoPreview" controls style="width:100%; display:none;"></video>
-                    <div id="videoPlaceholder" style="background:#555; padding:2em; text-align:center; border-radius:5px;">
+                    <div id="videoPlaceholder" style="background:#555; text-align:center; border-radius:5px;">
                         <p>Video Preview</p>
                         <p style="font-size:0.8em; opacity:0.7;">Play a video URL or select from Content/Videos to see preview</p>
                     </div>
@@ -133,11 +155,11 @@
                     <button id="btnServerGLB" onclick="showGLBList('server')" style="flex: 1; min-width: 70px; font-size: 0.8em; padding: 0.3em; background: #005fa3;">Server GLB</button>
                     <button id="btnDeviceGLB" onclick="showGLBList('device')" style="flex: 1; min-width: 70px; font-size: 0.8em; padding: 0.3em;">Device GLB</button>
                 </div>
-                <ul id="glbList" style="list-style:none; padding:0; margin:0; flex: 1; overflow-y: auto; max-height: 150px;"></ul>
+                <ul id="glbList" style="list-style:none; padding:0; margin:0; flex: 1; overflow-y: auto; max-height: 180px;"></ul>
                 <div style="margin-top: 0.5em;">
                     <h4 style="margin: 0.5em 0;">Preview</h4>
-                    <model-viewer id="glbPreview" camera-controls autoplay style="width: 100%; height: 150px; border-radius: 10px; background: #111; display: none;"></model-viewer>
-                    <div id="glbPreviewPlaceholder" style="padding: 1em; border-radius: 10px; background: #2c2c2c; text-align: center; color: #999; height: 120px; display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 0.9em;">
+                    <model-viewer id="glbPreview" camera-controls autoplay style="width: 100%; height: 300px; border-radius: 10px; background: #111; display: none;"></model-viewer>
+                    <div id="glbPreviewPlaceholder" style="padding: 1em; border-radius: 10px; background: #2c2c2c; text-align: center; color: #999; height: 300px; display: flex; align-items: center; justify-content: center; flex-direction: column; font-size: 0.9em;">
                         <p>3D Model Preview</p>
                         <p style="font-size:0.85em; opacity:0.7;">Select a GLB/GLTF to preview</p>
                     </div>
@@ -162,6 +184,8 @@
         let serverGLBs = [];
         let deviceVideos = {}; // deviceId -> array of videos
         let deviceGLBs = {}; // deviceId -> array of GLBs
+        const deviceDownloads = {};
+        const deviceDownloadTimeouts = {};
         let currentVideoView = 'server2D'; // 'server2D', 'server360', 'device'
         let currentGLBView = 'server'; // 'server', 'device'
         let serverFetchError = null;
@@ -270,6 +294,11 @@
             device.ws = new WebSocket(`ws://${device.ip}:${device.port}`);
             device.ws.onopen = () => {
                 device.status = 'connected';
+                delete deviceDownloads[device.id];
+                if (deviceDownloadTimeouts[device.id]) {
+                    clearTimeout(deviceDownloadTimeouts[device.id]);
+                    delete deviceDownloadTimeouts[device.id];
+                }
                 updateDeviceList();
                 requestVideoList(device);
                 
@@ -280,10 +309,20 @@
             };
             device.ws.onclose = () => {
                 device.status = 'disconnected';
+                if (deviceDownloadTimeouts[device.id]) {
+                    clearTimeout(deviceDownloadTimeouts[device.id]);
+                    delete deviceDownloadTimeouts[device.id];
+                }
+                delete deviceDownloads[device.id];
                 updateDeviceList();
             };
             device.ws.onerror = () => {
                 device.status = 'disconnected';
+                if (deviceDownloadTimeouts[device.id]) {
+                    clearTimeout(deviceDownloadTimeouts[device.id]);
+                    delete deviceDownloadTimeouts[device.id];
+                }
+                delete deviceDownloads[device.id];
                 updateDeviceList();
             };
             device.ws.onmessage = (msg) => {
@@ -297,6 +336,9 @@
                         device.glbList = data.files;
                         deviceGLBs[device.id] = data.files;
                         updateGLBListPanel();
+                    } else if (data.type === 'downloadStatus') {
+                        handleDownloadStatus(device, data);
+                        return;
                     }
                     // Sync browser video preview with app pause/resume
                     if (typeof data === 'string') return;
@@ -411,17 +453,38 @@
                 throw new Error('Device not connected');
             }
 
+            deviceDownloads[deviceId] = {
+                filename,
+                folder,
+                state: 'queued',
+                progress: 0,
+                message: ''
+            };
+            if (deviceDownloadTimeouts[deviceId]) {
+                clearTimeout(deviceDownloadTimeouts[deviceId]);
+                delete deviceDownloadTimeouts[deviceId];
+            }
+            updateDeviceList();
+            setStatus(`Preparing ${filename} for ${device.ip}...`);
+
             let serverUrl = `${SERVER_URL}/VR_content/Videos/${folder}/${filename}`;
             if (folder === 'GLB') {
                 serverUrl = `${SERVER_URL}/VR_content/GLB/${filename}`;
             }
 
-            device.ws.send(JSON.stringify({ 
-                action: 'downloadFile', 
-                url: serverUrl, 
-                filename: filename,
-                folder: folder
-            }));
+            try {
+                device.ws.send(JSON.stringify({ 
+                    action: 'downloadFile', 
+                    url: serverUrl, 
+                    filename: filename,
+                    folder: folder
+                }));
+            } catch (error) {
+                setStatus(`Failed to queue ${filename} for ${device.ip}`, 'error');
+                delete deviceDownloads[deviceId];
+                updateDeviceList();
+                throw error;
+            }
         }
 
 
@@ -441,6 +504,16 @@
             document.getElementById('btnServer360').style.background = viewType === 'server360' ? '#005fa3' : '#0078d7';
             document.getElementById('btnDevice').style.background = viewType === 'device' ? '#005fa3' : '#0078d7';
             
+            // Refresh video lists when switching tabs
+            if (viewType === 'server2D' || viewType === 'server360') {
+                fetchServerFiles();
+            } else if (viewType === 'device') {
+                // Request video list from all connected devices
+                getConnectedDevices().forEach(device => {
+                    requestVideoList(device);
+                });
+            }
+            
             updateVideoListPanel();
         }
 
@@ -450,6 +523,16 @@
             // Update button states
             document.getElementById('btnServerGLB').style.background = viewType === 'server' ? '#005fa3' : '#0078d7';
             document.getElementById('btnDeviceGLB').style.background = viewType === 'device' ? '#005fa3' : '#0078d7';
+            
+            // Refresh GLB lists when switching tabs
+            if (viewType === 'server') {
+                fetchServerFiles();
+            } else if (viewType === 'device') {
+                // Request GLB list from all connected devices
+                getConnectedDevices().forEach(device => {
+                    requestVideoList(device);
+                });
+            }
             
             updateGLBListPanel();
         }
@@ -518,6 +601,7 @@
             downloadBtn.style.color = 'white';
             downloadBtn.style.border = 'none';
             downloadBtn.style.borderRadius = '3px';
+            downloadBtn.title = 'Download to device';
             downloadBtn.onclick = () => downloadVideoToAllDevices(filename, folder);
 
             buttonContainer.appendChild(playBtn);
@@ -668,6 +752,7 @@
             downloadBtn.style.color = 'white';
             downloadBtn.style.border = 'none';
             downloadBtn.style.borderRadius = '3px';
+            downloadBtn.title = 'Download to device';
             downloadBtn.onclick = () => downloadGLBToAllDevices(filename);
 
             buttonContainer.appendChild(downloadBtn);
@@ -782,21 +867,36 @@
             }
         }
 
+        function sendPlay() {
+            const path = document.getElementById('videoPath').value;
+            getConnectedDevices().forEach(device => {
+                device.ws.send(JSON.stringify({ action: 'play', path }));
+            });
+            setPreviewForPath(path);
+            const videoPreview = document.getElementById('videoPreview');
+            if (videoPreview) {
+                videoPreview.currentTime = 0;
+            }
+            const btn = document.getElementById('pauseResumeBtn');
+            if (btn) btn.textContent = 'Pause';
+        }
+
         function streamVideoFromServer(filename, folder) {
             const serverUrl = `${SERVER_URL}/VR_content/Videos/${folder}/${filename}`;
             const connectedDevices = getConnectedDevices();
-            
             if (connectedDevices.length === 0) {
-                alert('No devices connected');
+                setStatus('No devices connected', 'warn');
                 return;
             }
-
             connectedDevices.forEach(device => {
                 device.ws.send(JSON.stringify({ action: 'play', path: serverUrl }));
             });
-
             document.getElementById('videoPath').value = serverUrl;
             setPreviewForPath(serverUrl);
+            const videoPreview = document.getElementById('videoPreview');
+            if (videoPreview) {
+                videoPreview.currentTime = 0;
+            }
             const btn = document.getElementById('pauseResumeBtn');
             if (btn) btn.textContent = 'Pause';
         }
@@ -805,34 +905,34 @@
             const connectedDevices = getConnectedDevices();
             
             if (connectedDevices.length === 0) {
-                alert('No devices connected');
+                setStatus('No devices connected', 'warn');
                 return;
             }
 
             connectedDevices.forEach(device => {
                 downloadFileToDevice(filename, folder, device.id).catch(error => {
                     console.error(`Failed to download ${filename} to device ${device.ip}:`, error);
+                    setStatus(`Failed to start download on ${device.ip}`, 'error');
                 });
             });
-
-            alert(`Downloading ${filename} to ${connectedDevices.length} device(s)`);
+            setStatus(`Downloading ${filename} to ${connectedDevices.length} device(s)...`, 'info');
         }
 
         function downloadGLBToAllDevices(filename) {
             const connectedDevices = getConnectedDevices();
             
             if (connectedDevices.length === 0) {
-                alert('No devices connected');
+                setStatus('No devices connected', 'warn');
                 return;
             }
 
             connectedDevices.forEach(device => {
                 downloadFileToDevice(filename, 'GLB', device.id).catch(error => {
                     console.error(`Failed to download ${filename} to device ${device.ip}:`, error);
+                    setStatus(`Failed to start download on ${device.ip}`, 'error');
                 });
             });
-
-            alert(`Downloading ${filename} to ${connectedDevices.length} device(s)`);
+            setStatus(`Downloading ${filename} to ${connectedDevices.length} device(s)...`, 'info');
         }
 
         function previewGLBFromServer(filename) {
@@ -849,7 +949,7 @@
             const connectedDevices = getConnectedDevices();
             
             if (connectedDevices.length === 0) {
-                alert('No devices connected');
+                setStatus('No devices connected', 'warn');
                 return;
             }
 
@@ -860,64 +960,213 @@
 
         function updateDeviceList() {
             const list = document.getElementById('deviceList');
+            if (!list) return;
             list.innerHTML = '';
+
+            if (devices.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.fontSize = '0.8em';
+                empty.style.textAlign = 'center';
+                empty.style.opacity = '0.6';
+                empty.textContent = 'No devices added yet';
+                list.appendChild(empty);
+                return;
+            }
+
             devices.forEach(device => {
-                const color = device.status === 'connected' ? '#0f0' : (device.status === 'connecting' ? '#ff0' : '#f00');
-                const statusText = device.status.charAt(0).toUpperCase() + device.status.slice(1);
-                const div = document.createElement('div');
-                div.style.display = 'flex';
-                div.style.alignItems = 'center';
-                div.style.justifyContent = 'space-between';
-                div.style.gap = '0.5em';
-                div.style.padding = '0.2em 1em';
+                const statusKey = ['connected', 'connecting', 'disconnected'].includes(device.status) ? device.status : 'disconnected';
+                const statusText = device.status ? device.status.charAt(0).toUpperCase() + device.status.slice(1) : 'Unknown';
 
-                // Device info
-                const infoSpan = document.createElement('span');
-                infoSpan.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};border:1px solid #333;"></span> <b>${device.ip}</b>`;
+                const entry = document.createElement('div');
+                entry.className = 'device-entry';
 
-                // Status
-                const statusSpan = document.createElement('span');
-                statusSpan.style.fontSize = '0.9em';
-                statusSpan.style.opacity = '0.7';
-                statusSpan.style.textAlign = 'right';
-                statusSpan.style.minWidth = '80px';
-                statusSpan.textContent = statusText;
+                const header = document.createElement('div');
+                header.className = 'device-entry-header';
 
-                // Reconnect button
-                const reconnectBtn = document.createElement('button');
-                reconnectBtn.textContent = 'Reconnect';
-                reconnectBtn.style.background = '#1976d2';
-                reconnectBtn.style.color = '#fff';
-                reconnectBtn.style.marginLeft = '0.5em';
-                reconnectBtn.onclick = () => {
-                    if (device.ws) device.ws.close();
-                    setTimeout(() => connectDevice(device), 200);
+                const info = document.createElement('div');
+                info.className = 'device-info';
+
+                const indicator = document.createElement('span');
+                indicator.className = `device-status-indicator device-status-${statusKey}`;
+                info.appendChild(indicator);
+
+                const ipSpan = document.createElement('span');
+                ipSpan.textContent = device.ip;
+                info.appendChild(ipSpan);
+
+                header.appendChild(info);
+
+                const buttons = document.createElement('div');
+                buttons.className = 'device-entry-buttons';
+
+                const connectBtn = document.createElement('button');
+                connectBtn.textContent = device.status === 'connected' ? 'Reconnect' : 'Connect';
+                connectBtn.title = connectBtn.textContent;
+                connectBtn.style.background = '#1976d2';
+                connectBtn.style.color = '#fff';
+                connectBtn.onclick = () => {
+                    if (device.ws && device.ws.readyState === WebSocket.OPEN) {
+                        device.ws.close();
+                        setTimeout(() => connectDevice(device), 200);
+                    } else {
+                        connectDevice(device);
+                    }
                 };
+                connectBtn.disabled = device.status === 'connecting';
+                connectBtn.style.opacity = connectBtn.disabled ? '0.5' : '1';
 
-                // Disconnect button
                 const disconnectBtn = document.createElement('button');
                 disconnectBtn.textContent = 'Disconnect';
+                disconnectBtn.title = 'Disconnect';
                 disconnectBtn.style.background = '#d32f2f';
                 disconnectBtn.style.color = '#fff';
-                disconnectBtn.style.marginLeft = '0.2em';
                 disconnectBtn.onclick = () => {
-                    if (device.ws) device.ws.close();
+                    if (device.ws) {
+                        device.ws.close();
+                    }
                 };
+                const isOpen = device.ws && device.ws.readyState === WebSocket.OPEN;
+                const isConnecting = device.ws && device.ws.readyState === WebSocket.CONNECTING;
+                disconnectBtn.disabled = !(isOpen || isConnecting);
+                disconnectBtn.style.opacity = disconnectBtn.disabled ? '0.5' : '1';
 
-                div.appendChild(infoSpan);
-                div.appendChild(statusSpan);
-                div.appendChild(reconnectBtn);
-                div.appendChild(disconnectBtn);
-                list.appendChild(div);
+                buttons.appendChild(connectBtn);
+                buttons.appendChild(disconnectBtn);
+                header.appendChild(buttons);
+                entry.appendChild(header);
+
+                const statusRow = document.createElement('div');
+                statusRow.className = 'device-entry-status';
+                statusRow.textContent = `${statusText} • ws://${device.ip}:${device.port}`;
+                entry.appendChild(statusRow);
+
+                const downloadState = deviceDownloads[device.id];
+                if (downloadState && downloadState.state) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'device-progress-wrapper';
+
+                    const label = document.createElement('div');
+                    label.className = 'device-progress-label';
+                    label.textContent = formatDownloadLabel(downloadState);
+                    if (downloadState.state === 'completed') {
+                        label.style.color = '#9ccc65';
+                    } else if (downloadState.state === 'failed') {
+                        label.style.color = '#ef9a9a';
+                    }
+
+                    const progress = document.createElement('div');
+                    progress.className = 'device-progress';
+
+                    const bar = document.createElement('div');
+                    bar.className = 'device-progress-bar';
+                    if (downloadState.state === 'completed') {
+                        bar.classList.add('complete');
+                    } else if (downloadState.state === 'failed') {
+                        bar.classList.add('failed');
+                    }
+                    const safeProgress = Math.max(0, Math.min(100, downloadState.progress || 0));
+                    bar.style.width = `${safeProgress}%`;
+
+                    progress.appendChild(bar);
+                    wrapper.appendChild(label);
+                    wrapper.appendChild(progress);
+
+                    if (downloadState.message && downloadState.state === 'failed') {
+                        const detail = document.createElement('div');
+                        detail.className = 'device-entry-status';
+                        detail.style.color = '#ef9a9a';
+                        detail.textContent = downloadState.message;
+                        wrapper.appendChild(detail);
+                    }
+
+                    entry.appendChild(wrapper);
+                }
+
+                list.appendChild(entry);
             });
+        }
+
+        function formatDownloadLabel(state) {
+            const name = state.filename || 'File';
+            const folderLabel = state.folder && state.folder !== 'Videos' ? `[${String(state.folder).toUpperCase()}] ` : '';
+            const progress = Math.round(state.progress || 0);
+            switch (state.state) {
+                case 'queued':
+                    return `${folderLabel}${name} • Waiting`;
+                case 'started':
+                    return `${folderLabel}${name} • Starting`;
+                case 'progress':
+                    return `${folderLabel}${name} • Downloading (${progress}%)`;
+                case 'completed':
+                    return `${folderLabel}${name} • Ready`;
+                case 'failed':
+                    return `${folderLabel}${name} • Failed`;
+                default:
+                    return `${folderLabel}${name}`;
+            }
         }
 
         function getConnectedDevices() {
             return devices.filter(d => d.status === 'connected');
         }
 
-        function setStatus(msg) {
-            document.getElementById('status').innerText = msg;
+        function setStatus(msg, tone = 'info') {
+            const statusEl = document.getElementById('status');
+            if (!statusEl) return;
+            statusEl.innerText = msg || '';
+            const colors = {
+                info: '#8bc34a',
+                warn: '#ffb74d',
+                error: '#ef5350'
+            };
+            statusEl.style.color = colors[tone] || colors.info;
+        }
+
+        function handleDownloadStatus(device, data) {
+            const existing = deviceDownloads[device.id] || {};
+            const progress = typeof data.progress === 'number' ? Math.max(0, Math.min(100, data.progress)) : (existing.progress || 0);
+            const state = data.state || existing.state || 'progress';
+
+            const nextState = {
+                filename: data.filename || existing.filename || '',
+                folder: data.folder || existing.folder || '',
+                state,
+                progress,
+                message: data.message || ''
+            };
+
+            deviceDownloads[device.id] = nextState;
+            updateDeviceList();
+
+            if (deviceDownloadTimeouts[device.id]) {
+                clearTimeout(deviceDownloadTimeouts[device.id]);
+                delete deviceDownloadTimeouts[device.id];
+            }
+
+            const labelName = nextState.filename || 'File';
+            if (state === 'queued') {
+                setStatus(`Queued ${labelName} for ${device.ip}`, 'info');
+            } else if (state === 'started') {
+                setStatus(`Downloading ${labelName} to ${device.ip}...`, 'info');
+            } else if (state === 'progress') {
+                setStatus(`Downloading ${labelName} to ${device.ip}: ${Math.round(progress)}%`, 'info');
+            } else if (state === 'completed') {
+                setStatus(`${labelName} ready on ${device.ip}`, 'info');
+                requestVideoList(device);
+                deviceDownloadTimeouts[device.id] = setTimeout(() => {
+                    delete deviceDownloads[device.id];
+                    delete deviceDownloadTimeouts[device.id];
+                    updateDeviceList();
+                }, 4000);
+            } else if (state === 'failed') {
+                const errorMsg = nextState.message ? `${labelName} failed on ${device.ip}: ${nextState.message}` : `${labelName} failed on ${device.ip}`;
+                setStatus(errorMsg, 'error');
+                deviceDownloadTimeouts[device.id] = setTimeout(() => {
+                    delete deviceDownloads[device.id];
+                    delete deviceDownloadTimeouts[device.id];
+                    updateDeviceList();
+                }, 7000);
+            }
         }
 
         function toggleMode() {
@@ -928,17 +1177,6 @@
                 device.ws.send(JSON.stringify({ action: 'toggleMode', mode: is360Mode ? '360' : '2D' }));
             });
         }
-
-        function sendPlay() {
-            const path = document.getElementById('videoPath').value;
-            getConnectedDevices().forEach(device => {
-                device.ws.send(JSON.stringify({ action: 'play', path }));
-            });
-            setPreviewForPath(path);
-            const btn = document.getElementById('pauseResumeBtn');
-            if (btn) btn.textContent = 'Pause';
-        }
-
 
         function togglePauseResume() {
             const videoPreview = document.getElementById('videoPreview');
